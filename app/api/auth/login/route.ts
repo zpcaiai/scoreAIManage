@@ -74,7 +74,7 @@ export const POST = apiHandler(
     // Return user info and token (exclude password)
     const { password: _, ...userInfo } = user;
     
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: {
         user: userInfo,
@@ -83,6 +83,17 @@ export const POST = apiHandler(
       },
       message: 'Login successful'
     });
+
+    // Set cookie so middleware can protect page routes (httpOnly for security)
+    response.cookies.set('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24, // 24 hours
+      path: '/'
+    });
+
+    return response;
   },
   {
     requireAuth: false, // Login doesn't require authentication

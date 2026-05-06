@@ -124,18 +124,75 @@ CREATE TABLE user_sessions (
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
--- 创建索引以提高查询性能
+-- ==================== 索引设计 ====================
+-- Index Design
+-- 原则：覆盖高频查询的 WHERE / JOIN / ORDER BY 字段，避免全表扫描
+
+-- ---- classes 表 ----
+-- 按年级+学年筛选班级列表
+CREATE INDEX idx_classes_grade_year ON classes(grade_level, academic_year);
+
+-- ---- subjects 表 ----
+-- 按激活状态过滤科目（subject_code 已有 UNIQUE 索引）
+CREATE INDEX idx_subjects_active ON subjects(is_active);
+
+-- ---- students 表 ----
+-- JOIN classes 时用到（外键查找）
 CREATE INDEX idx_students_class ON students(class_id);
+-- 按姓名搜索学生
+CREATE INDEX idx_students_name ON students(student_name);
+-- 按激活状态+班级过滤在校学生
+CREATE INDEX idx_students_active_class ON students(is_active, class_id);
+
+-- ---- grades 表 ----
+-- 单学生成绩查询（最常用，覆盖 JOIN grades ON student_id）
 CREATE INDEX idx_grades_student ON grades(student_id);
+-- 单科目成绩统计
 CREATE INDEX idx_grades_subject ON grades(subject_id);
-CREATE INDEX idx_grades_exam ON grades(exam_type, semester, academic_year);
+-- 按考试维度聚合（排名计算：semester + academic_year + exam_type）
+CREATE INDEX idx_grades_exam_dim ON grades(exam_type, semester, academic_year);
+-- 成绩表格查询核心：10 次 LEFT JOIN 均带 (student_id, subject_id, exam_type)
+-- 复合覆盖索引，避免回表
+CREATE INDEX idx_grades_stu_sub_exam ON grades(student_id, subject_id, exam_type);
+-- 按考试日期范围查询
+CREATE INDEX idx_grades_exam_date ON grades(exam_date);
+
+-- ---- grade_summaries 表 ----
+-- 学生维度 JOIN
 CREATE INDEX idx_summaries_student ON grade_summaries(student_id);
-CREATE INDEX idx_summaries_rank ON grade_summaries(ten_subjects_rank);
+-- 按学期+学年+考试类型查全年级汇总
+CREATE INDEX idx_summaries_exam_dim ON grade_summaries(semester, academic_year, exam_type);
+-- 十门年次排名排序（ORDER BY ten_subjects_rank）
+CREATE INDEX idx_summaries_ten_rank ON grade_summaries(ten_subjects_rank);
+-- 三门年次排名排序
+CREATE INDEX idx_summaries_three_rank ON grade_summaries(three_subjects_rank);
+-- 班级排名查询
+CREATE INDEX idx_summaries_class_ten_rank ON grade_summaries(class_rank_ten_subjects);
+CREATE INDEX idx_summaries_class_three_rank ON grade_summaries(class_rank_three_subjects);
+
+-- ---- exams 表 ----
+-- 按学期+学年筛选考试
 CREATE INDEX idx_exams_semester ON exams(semester, academic_year);
+-- 按激活状态+考试类型查询当前可用考试
+CREATE INDEX idx_exams_active_type ON exams(is_active, exam_type);
+
+-- ---- users 表 ----
+-- 登录时按 username 匹配（username 已有 UNIQUE，安全起见保留）
 CREATE INDEX idx_users_username ON users(username);
+-- 按邮筱搜索用户
 CREATE INDEX idx_users_email ON users(email);
+-- 按角色+激活状态查询用户列表
+CREATE INDEX idx_users_role_active ON users(role, is_active);
+-- 按最后登录时间排序/查询活跃用户
+CREATE INDEX idx_users_last_login ON users(last_login);
+
+-- ---- user_sessions 表 ----
+-- 按用户 ID 查询其所有会话
 CREATE INDEX idx_sessions_user ON user_sessions(user_id);
+-- 验证 token 时按 token_hash 匹配
 CREATE INDEX idx_sessions_token ON user_sessions(token_hash);
+-- 清理过期会话时按 expires_at 过滤
+CREATE INDEX idx_sessions_expires ON user_sessions(expires_at);
 
 -- 创建更新时间触发器函数
 CREATE OR REPLACE FUNCTION update_updated_at_column()
