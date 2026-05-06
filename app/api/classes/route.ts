@@ -5,12 +5,13 @@ import { DataAccessLayer } from '@/lib/database';
 import { AuditLogger } from '@/lib/error-handler';
 import { UserRole } from '@/lib/auth';
 
-const dataAccess = new DataAccessLayer();
+let _da: DataAccessLayer | null = null;
+function getDA() { if (!_da) _da = new DataAccessLayer(); return _da; }
 
 // GET /api/classes - Get all classes
 export const GET = apiHandler(
   async (request, { user }) => {
-    const classes = await dataAccess.getClasses();
+    const classes = await getDA().getClasses();
     
     return NextResponse.json({
       success: true,
@@ -27,7 +28,7 @@ export const GET = apiHandler(
 // POST /api/classes - Create a new class
 export const POST = apiHandler(
   async (request, { user, validatedData }) => {
-    const newClass = await dataAccess.createClass(validatedData);
+    const newClass = await getDA().createClass(validatedData);
     
     // Audit logging
     AuditLogger.log(

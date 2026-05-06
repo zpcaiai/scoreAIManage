@@ -5,13 +5,14 @@ import { DataAccessLayer } from '@/lib/database';
 import { AuditLogger, createNotFoundError } from '@/lib/error-handler';
 import { UserRole } from '@/lib/auth';
 
-const dataAccess = new DataAccessLayer();
+let _da: DataAccessLayer | null = null;
+function getDA() { if (!_da) _da = new DataAccessLayer(); return _da; }
 
 // GET /api/students/[studentId] - Get a specific student
 export const GET = apiHandler(
   async (request, { user, params }) => {
     const studentId = params.studentId;
-    const student = await dataAccess.getStudentById(studentId);
+    const student = await getDA().getStudentById(studentId);
     
     if (!student) {
       throw createNotFoundError('Student', studentId);
@@ -37,7 +38,7 @@ export const GET = apiHandler(
 export const PUT = apiHandler(
   async (request, { user, validatedData, params }) => {
     const studentId = params.studentId;
-    const existingStudent = await dataAccess.getStudentById(studentId);
+    const existingStudent = await getDA().getStudentById(studentId);
     
     if (!existingStudent) {
       throw createNotFoundError('Student', studentId);
@@ -48,7 +49,7 @@ export const PUT = apiHandler(
       throw new Error('Access denied: You can only update your own data');
     }
     
-    const updatedStudent = await dataAccess.updateStudent(studentId, validatedData);
+    const updatedStudent = await getDA().updateStudent(studentId, validatedData);
     
     // Audit logging
     AuditLogger.log(
@@ -80,13 +81,13 @@ export const PUT = apiHandler(
 export const DELETE = apiHandler(
   async (request, { user, params }) => {
     const studentId = params.studentId;
-    const existingStudent = await dataAccess.getStudentById(studentId);
+    const existingStudent = await getDA().getStudentById(studentId);
     
     if (!existingStudent) {
       throw createNotFoundError('Student', studentId);
     }
     
-    const deleted = await dataAccess.deleteStudent(studentId);
+    const deleted = await getDA().deleteStudent(studentId);
     
     if (!deleted) {
       throw createNotFoundError('Student', studentId);
@@ -111,3 +112,5 @@ export const DELETE = apiHandler(
     requiredRole: UserRole.ADMIN
   }
 );
+
+export function generateStaticParams() { return []; }

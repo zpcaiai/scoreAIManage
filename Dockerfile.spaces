@@ -15,5 +15,6 @@ RUN npm run build
 EXPOSE 7860
 
 ENV PORT=7860
+ENV HOSTNAME=0.0.0.0
 
-CMD ["npx", "serve", "out", "-l", "7860"]
+CMD ["npm", "start"]

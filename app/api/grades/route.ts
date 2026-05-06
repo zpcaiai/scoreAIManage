@@ -4,7 +4,8 @@ import { DataAccessLayer } from '@/lib/database';
 import { AuditLogger } from '@/lib/error-handler';
 import { UserRole } from '@/lib/auth';
 
-const dataAccess = new DataAccessLayer();
+let _da: DataAccessLayer | null = null;
+function getDA() { if (!_da) _da = new DataAccessLayer(); return _da; }
 
 // GET /api/grades - Get grades with optional filters
 export const GET = apiHandler(
@@ -25,7 +26,7 @@ export const GET = apiHandler(
       filters.student_id = user!.id;
     }
     
-    const grades = await dataAccess.getGrades(filters);
+    const grades = await getDA().getGrades(filters);
     
     // If class and exam are specified, calculate rankings
     if (classId && examId && grades.length > 0) {
@@ -88,7 +89,7 @@ export const GET = apiHandler(
 // POST /api/grades - Create a new grade
 export const POST = apiHandler(
   async (request, { user, validatedData }) => {
-    const newGrade = await dataAccess.createGrade(validatedData);
+    const newGrade = await getDA().createGrade(validatedData);
     
     // Audit logging
     AuditLogger.log(

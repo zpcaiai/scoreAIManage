@@ -6,9 +6,11 @@ import ClassManager from "@/components/ClassManager";
 import StudentManager from "@/components/StudentManager";
 import GradeManager from "@/components/GradeManager";
 import Statistics from "@/components/Statistics";
+import dynamic from 'next/dynamic';
+const AnalyticsPage = dynamic(() => import('@/app/analytics/page'), { ssr: false });
 import { ProtectedRoute, useAuth } from "@/contexts/AuthContext";
 
-type TabType = 'grades' | 'classes' | 'students' | 'grade-input' | 'statistics';
+type TabType = 'grades' | 'classes' | 'students' | 'grade-input' | 'statistics' | 'analytics';
 
 function GradesPageContent() {
   const [activeTab, setActiveTab] = useState<TabType>('grades');
@@ -20,7 +22,8 @@ function GradesPageContent() {
     { id: 'classes', label: '班级管理', icon: '🏫', requiredRole: 'teacher' as const },
     { id: 'students', label: '学生管理', icon: '👥', requiredRole: 'teacher' as const },
     { id: 'grade-input', label: '成绩录入', icon: '✏️', requiredRole: 'teacher' as const },
-    { id: 'statistics', label: '统计分析', icon: '📈' }
+    { id: 'statistics', label: '统计分析', icon: '📈' },
+    { id: 'analytics', label: '智能分析', icon: '🧠' }
   ];
 
   const handleDataChange = () => {
@@ -97,6 +100,9 @@ function GradesPageContent() {
             )}
             {activeTab === 'statistics' && (
               <Statistics refreshTrigger={refreshTrigger} />
+            )}
+            {activeTab === 'analytics' && (
+              <AnalyticsPage />
             )}
           </div>
         </div>

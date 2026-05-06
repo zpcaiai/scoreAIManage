@@ -5,7 +5,8 @@ import { DataAccessLayer } from '@/lib/database';
 import { AuditLogger } from '@/lib/error-handler';
 import { UserRole } from '@/lib/auth';
 
-const dataAccess = new DataAccessLayer();
+let _da: DataAccessLayer | null = null;
+function getDA() { if (!_da) _da = new DataAccessLayer(); return _da; }
 
 // GET /api/students - Get all students (with optional class filter)
 export const GET = apiHandler(
@@ -14,7 +15,7 @@ export const GET = apiHandler(
     const classId = searchParams.get('classId');
     
     const filters = classId ? { class_id: classId } : undefined;
-    const students = await dataAccess.getStudents(filters);
+    const students = await getDA().getStudents(filters);
     
     return NextResponse.json({
       success: true,
@@ -32,7 +33,7 @@ export const GET = apiHandler(
 // POST /api/students - Create a new student
 export const POST = apiHandler(
   async (request, { user, validatedData }) => {
-    const newStudent = await dataAccess.createStudent(validatedData);
+    const newStudent = await getDA().createStudent(validatedData);
     
     // Audit logging
     AuditLogger.log(

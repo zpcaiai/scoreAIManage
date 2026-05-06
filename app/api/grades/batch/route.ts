@@ -4,7 +4,8 @@ import { DataAccessLayer } from '@/lib/database';
 import { AuditLogger } from '@/lib/error-handler';
 import { UserRole } from '@/lib/auth';
 
-const dataAccess = new DataAccessLayer();
+let _da: DataAccessLayer | null = null;
+function getDA() { if (!_da) _da = new DataAccessLayer(); return _da; }
 
 // POST /api/grades/batch - Batch create grades
 export const POST = apiHandler(
@@ -12,7 +13,7 @@ export const POST = apiHandler(
     const { grades } = validatedData;
     
     // Batch create grades
-    const createdGrades = await dataAccess.createGrades(grades);
+    const createdGrades = await getDA().createGrades(grades);
     
     // Audit logging
     AuditLogger.log(

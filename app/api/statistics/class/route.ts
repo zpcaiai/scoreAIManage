@@ -3,7 +3,8 @@ import { apiHandler } from '@/lib/api-middleware';
 import { DataAccessLayer } from '@/lib/database';
 import { UserRole } from '@/lib/auth';
 
-const dataAccess = new DataAccessLayer();
+let _da: DataAccessLayer | null = null;
+function getDA() { if (!_da) _da = new DataAccessLayer(); return _da; }
 
 // GET /api/statistics/class - Get class statistics
 export const GET = apiHandler(
@@ -16,8 +17,8 @@ export const GET = apiHandler(
     }
     
     // Get all grades for the exam
-    const grades = await dataAccess.getGrades({ exam_id: examId });
-    const classes = await dataAccess.getClasses();
+    const grades = await getDA().getGrades({ exam_id: examId });
+    const classes = await getDA().getClasses();
     
     // Calculate statistics for each class
     const classStats = classes.map(cls => {

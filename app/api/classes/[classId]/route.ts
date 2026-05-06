@@ -5,13 +5,14 @@ import { DataAccessLayer } from '@/lib/database';
 import { AuditLogger, createNotFoundError } from '@/lib/error-handler';
 import { UserRole } from '@/lib/auth';
 
-const dataAccess = new DataAccessLayer();
+let _da: DataAccessLayer | null = null;
+function getDA() { if (!_da) _da = new DataAccessLayer(); return _da; }
 
 // GET /api/classes/[classId] - Get a specific class
 export const GET = apiHandler(
   async (request, { user, params }) => {
     const classId = params.classId;
-    const classData = await dataAccess.getClassById(classId);
+    const classData = await getDA().getClassById(classId);
     
     if (!classData) {
       throw createNotFoundError('Class', classId);
@@ -32,13 +33,13 @@ export const GET = apiHandler(
 export const PUT = apiHandler(
   async (request, { user, validatedData, params }) => {
     const classId = params.classId;
-    const existingClass = await dataAccess.getClassById(classId);
+    const existingClass = await getDA().getClassById(classId);
     
     if (!existingClass) {
       throw createNotFoundError('Class', classId);
     }
     
-    const updatedClass = await dataAccess.updateClass(classId, validatedData);
+    const updatedClass = await getDA().updateClass(classId, validatedData);
     
     // Audit logging
     AuditLogger.log(
@@ -70,13 +71,13 @@ export const PUT = apiHandler(
 export const DELETE = apiHandler(
   async (request, { user, params }) => {
     const classId = params.classId;
-    const existingClass = await dataAccess.getClassById(classId);
+    const existingClass = await getDA().getClassById(classId);
     
     if (!existingClass) {
       throw createNotFoundError('Class', classId);
     }
     
-    const deleted = await dataAccess.deleteClass(classId);
+    const deleted = await getDA().deleteClass(classId);
     
     if (!deleted) {
       throw createNotFoundError('Class', classId);
@@ -101,3 +102,5 @@ export const DELETE = apiHandler(
     requiredRole: UserRole.ADMIN
   }
 );
+
+export function generateStaticParams() { return []; }
