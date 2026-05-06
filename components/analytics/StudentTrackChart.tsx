@@ -14,10 +14,13 @@ interface StudentSummary {
   class_rank_improvement: number;
   grade_rank_improvement: number;
   score_pct_improvement: number;
+  abs_score_improvement: number | null;
   current_class_rank: number;
   current_grade_rank: number;
+  current_score: number;
+  current_total: number;
   advice: string;
-  chart_data: { name: string; 得分率: number; 班级排名: number; 年级排名: number; 班级均分率: number; 年级均分率: number }[];
+  chart_data: { name: string; 得分率: number; 班级排名: number; 年级排名: number; 班级均分率: number; 年级均分率: number; 原始分?: number }[];
 }
 
 interface PriorityList {
@@ -114,6 +117,7 @@ export default function StudentTrackChart() {
                 <th className="border px-3 py-2 text-right">年级排名</th>
                 <th className="border px-3 py-2 text-right">年级名次变化</th>
                 <th className="border px-3 py-2 text-right">得分率变化</th>
+                <th className="border px-3 py-2 text-right">绝对分进步</th>
                 <th className="border px-3 py-2 text-center">操作</th>
               </tr>
             </thead>
@@ -136,6 +140,13 @@ export default function StudentTrackChart() {
                   </td>
                   <td className={`border px-3 py-2 text-right font-medium ${s.score_pct_improvement > 0 ? "text-green-600" : s.score_pct_improvement < 0 ? "text-red-500" : "text-gray-400"}`}>
                     {s.score_pct_improvement > 0 ? `+${s.score_pct_improvement}%` : `${s.score_pct_improvement}%`}
+                  </td>
+                  <td className={`border px-3 py-2 text-right font-medium ${
+                    s.abs_score_improvement === null ? 'text-gray-400' :
+                    s.abs_score_improvement > 0 ? 'text-green-600' : s.abs_score_improvement < 0 ? 'text-red-500' : 'text-gray-400'
+                  }`}>
+                    {s.abs_score_improvement === null ? '—(不同总分)' :
+                     s.abs_score_improvement > 0 ? `+${s.abs_score_improvement}分` : `${s.abs_score_improvement}分`}
                   </td>
                   <td className="border px-3 py-2 text-center">
                     <button
@@ -202,13 +213,39 @@ export default function StudentTrackChart() {
       {/* 个人详情 */}
       {activeTab === "detail" && selectedStudent && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <span className="font-bold text-lg">{selectedStudent.student_name}</span>
             <span className={`text-sm px-3 py-1 rounded-full border ${labelColors[selectedStudent.classification.label]}`}>
               {selectedStudent.classification.label}
             </span>
             <span className="text-sm text-gray-500">班级第{selectedStudent.current_class_rank}名 · 年级第{selectedStudent.current_grade_rank}名</span>
           </div>
+
+          {/* 三维度进步摘要 */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: '班级名次进步', value: selectedStudent.class_rank_improvement, unit: '名', reverse: false },
+              { label: '年级名次进步', value: selectedStudent.grade_rank_improvement, unit: '名', reverse: false },
+              { label: '得分率进步',   value: selectedStudent.score_pct_improvement,  unit: '%', reverse: false },
+            ].map(item => (
+              <div key={item.label} className="bg-gray-50 rounded-lg p-3 text-center border">
+                <div className={`text-xl font-bold ${item.value > 0 ? 'text-green-600' : item.value < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                  {item.value > 0 ? `↑${item.value}${item.unit}` : item.value < 0 ? `↓${Math.abs(item.value)}${item.unit}` : `—`}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">{item.label}</div>
+              </div>
+            ))}
+          </div>
+          {selectedStudent.abs_score_improvement !== null && (
+            <div className="bg-amber-50 border border-amber-200 rounded p-3 text-sm flex items-center gap-2">
+              <span className="text-amber-700 font-medium">绝对分数进步：</span>
+              <span className={`font-bold text-base ${selectedStudent.abs_score_improvement! > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                {selectedStudent.abs_score_improvement! > 0 ? `+${selectedStudent.abs_score_improvement}分` : `${selectedStudent.abs_score_improvement}分`}
+              </span>
+              <span className="text-gray-400 text-xs">（当前 {selectedStudent.current_score}/{selectedStudent.current_total}，首末次考试同总分对比）</span>
+            </div>
+          )}
+
           <p className="text-sm bg-blue-50 border border-blue-200 rounded p-3 text-blue-800">
             💡 {selectedStudent.advice}
           </p>
@@ -245,6 +282,23 @@ export default function StudentTrackChart() {
               </ResponsiveContainer>
             </div>
           </div>
+
+          {/* 原始分趋势（绝对分数） */}
+          {selectedStudent.chart_data.some(d => d.原始分 !== undefined) && (
+            <div>
+              <p className="text-xs text-gray-500 mb-1 font-medium">原始分趋势（绝对分数，不同考试总分可能不同）</p>
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={selectedStudent.chart_data}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                  <YAxis />
+                  <Tooltip formatter={(v: any) => [`${v}分`]} />
+                  <Legend />
+                  <Line type="monotone" dataKey="原始分" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       )}
       {activeTab === "detail" && !selectedStudent && (

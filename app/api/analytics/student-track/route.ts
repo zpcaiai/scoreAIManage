@@ -156,14 +156,18 @@ export async function GET(request: NextRequest) {
         const first = examRecords[0], last = examRecords[examRecords.length - 1];
         const classRI = (first.class_rank || 0) - (last.class_rank || 0);
         const gradeRI = (first.grade_rank || 0) - (last.grade_rank || 0);
+        const absScoreImprove = last.total_score === first.total_score
+          ? parseFloat((last.score - first.score).toFixed(1)) : null;
         return {
           student_id: student.class_id * 1000 + targetStudents.indexOf(student),
           student_name: student.name, class_name: student.class_name, classification,
           class_rank_improvement: classRI, grade_rank_improvement: gradeRI,
           score_pct_improvement: parseFloat((last.score_pct - first.score_pct).toFixed(1)),
+          abs_score_improvement: absScoreImprove,
           current_class_rank: last.class_rank, current_grade_rank: last.grade_rank,
+          current_score: last.score, current_total: last.total_score,
           exam_records: examRecords, advice: genAdvice(student.name, classification.label, classRI, gradeRI),
-          chart_data: examRecords.map(r => ({ name: r.exam_name, 得分率: r.score_pct, 班级排名: r.class_rank, 年级排名: r.grade_rank, 班级均分率: parseFloat(((r.class_avg / r.total_score) * 100).toFixed(1)), 年级均分率: parseFloat(((r.grade_avg / r.total_score) * 100).toFixed(1)) })),
+          chart_data: examRecords.map(r => ({ name: r.exam_name, 得分率: r.score_pct, 班级排名: r.class_rank, 年级排名: r.grade_rank, 班级均分率: parseFloat(((r.class_avg / r.total_score) * 100).toFixed(1)), 年级均分率: parseFloat(((r.grade_avg / r.total_score) * 100).toFixed(1)), 原始分: r.score })),
         };
       });
 
@@ -275,24 +279,27 @@ export async function GET(request: NextRequest) {
       const lastRecord = examRecords[examRecords.length - 1];
       const classRankImprove = firstRecord.class_rank - lastRecord.class_rank;
       const gradeRankImprove = firstRecord.grade_rank - lastRecord.grade_rank;
-      const scoreImprove = parseFloat((
-        lastRecord.score_pct - firstRecord.score_pct
-      ).toFixed(1)); // 百分比进步（消除总分差异）
+      const scorePctImprove = parseFloat((lastRecord.score_pct - firstRecord.score_pct).toFixed(1));
+      // 绝对分数进步（同总分才可直接对比，否则用得分率差）
+      const absScoreImprove = lastRecord.total_score === firstRecord.total_score
+        ? parseFloat((lastRecord.score - firstRecord.score).toFixed(1))
+        : null;
 
       return {
         student_id: student.id,
         student_name: student.name,
         class_name: student.class_name,
         classification,
-        // 双维度名次进步
         class_rank_improvement: classRankImprove,
         grade_rank_improvement: gradeRankImprove,
-        score_pct_improvement: scoreImprove,
+        score_pct_improvement: scorePctImprove,
+        abs_score_improvement: absScoreImprove,
         current_class_rank: lastRecord.class_rank,
         current_grade_rank: lastRecord.grade_rank,
+        current_score: lastRecord.score,
+        current_total: lastRecord.total_score,
         exam_records: examRecords,
         advice: genAdvice(student.name, classification.label, classRankImprove, gradeRankImprove),
-        // 图表数据（双Y轴：分数% + 双名次）
         chart_data: examRecords.map(r => ({
           name: r.exam_name,
           得分率: r.score_pct,
@@ -300,6 +307,7 @@ export async function GET(request: NextRequest) {
           年级排名: r.grade_rank,
           班级均分率: parseFloat(((r.class_avg / r.total_score) * 100).toFixed(1)),
           年级均分率: parseFloat(((r.grade_avg / r.total_score) * 100).toFixed(1)),
+          原始分: r.score,
         })),
       };
     });

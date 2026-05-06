@@ -5,6 +5,7 @@ import GradeDistributionChart from "@/components/analytics/GradeDistributionChar
 import ClassTrendChart from "@/components/analytics/ClassTrendChart";
 import StudentTrackChart from "@/components/analytics/StudentTrackChart";
 import SubjectSegmentChart from "@/components/analytics/SubjectSegmentChart";
+import ClassCompareChart from "@/components/analytics/ClassCompareChart";
 
 const tabs = [
   { key: "grade",   label: "📊 年级宏观", desc: "班级横向对比、分位数、分数段分布" },
@@ -54,7 +55,12 @@ export default function AnalyticsPage() {
               <SubjectSegmentChart />
             </div>
           )}
-          {activeTab === "class"   && <ClassTrendChart />}
+          {activeTab === "class"   && (
+            <div className="space-y-6">
+              <ClassTrendChart />
+              <ClassCompareChart />
+            </div>
+          )}
           {activeTab === "student" && <StudentTrackChart />}
         </div>
       </div>

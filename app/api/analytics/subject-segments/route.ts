@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
           class_id: cls.id, class_name: cls.name,
           avg: seg.avg, max: seg.max, min: seg.min, count: seg.count,
           segments: segs,
-          sorted_scores: seg.sorted_scores.slice(0, 10),
+          sorted_scores: seg.sorted_scores, // 完整从高到低排序
         };
       }).sort((a, b) => b.avg - a.avg);
 

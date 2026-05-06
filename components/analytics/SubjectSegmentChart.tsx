@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from "recharts";
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"];
 const CLASS_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6"];
@@ -20,7 +20,7 @@ export default function SubjectSegmentChart() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedSubject, setSelectedSubject] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'segment' | 'avg' | 'suggest'>('segment');
+  const [viewMode, setViewMode] = useState<'segment' | 'curve' | 'avg' | 'suggest'>('segment');
 
   const subjects = ['all', '语文', '数学', '英语', '物理', '化学', '生物', '政治', '历史', '地理', '信息'];
 
@@ -58,6 +58,7 @@ export default function SubjectSegmentChart() {
       <div className="flex gap-2 border-b pb-2">
         {[
           { key: 'segment', label: '分数段分布' },
+          { key: 'curve',   label: '分布曲线' },
           { key: 'avg',     label: '均分对比' },
           { key: 'suggest', label: '向优秀班学习' },
         ].map(tab => (
@@ -69,6 +70,47 @@ export default function SubjectSegmentChart() {
           >{tab.label}</button>
         ))}
       </div>
+
+      {/* 分布曲线：各班级从高到低展示 */}
+      {viewMode === 'curve' && (
+        <div className="space-y-6">
+          {subjectList.map(sub => {
+            // 每个班级分数从高到低排序，用序号作为 X轴（最多取50点）
+            const maxLen = Math.min(50, Math.max(...sub.class_data.map(c => c.sorted_scores.length)));
+            const step = Math.max(1, Math.floor(Math.max(...sub.class_data.map(c => c.sorted_scores.length)) / maxLen));
+            const curveData = Array.from({ length: maxLen }, (_, i) => {
+              const srcIdx = i * step;
+              const pt: any = { rank: srcIdx + 1 };
+              sub.class_data.forEach(cls => {
+                pt[cls.class_name] = cls.sorted_scores[srcIdx] ?? null;
+              });
+              return pt;
+            });
+            return (
+              <div key={sub.subject} className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold text-gray-800">{sub.subject} — 各班成绩分布曲线（从高到低）</h3>
+                  <span className="text-xs text-gray-400">全部学生成绩从高到低排列（最多取样50点）</span>
+                </div>
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={curveData} margin={{ left: 0, right: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="rank" label={{ value: '名次', position: 'insideBottomRight', offset: -5 }} tick={{ fontSize: 10 }} />
+                    <YAxis />
+                    <Tooltip formatter={(v: any) => [`${v}分`]} />
+                    <Legend />
+                    {sub.class_data.map((cls, i) => (
+                      <Line key={cls.class_id} type="monotone" dataKey={cls.class_name}
+                        stroke={CLASS_COLORS[i % CLASS_COLORS.length]} strokeWidth={2}
+                        dot={false} connectNulls />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* 分数段分布 */}
       {viewMode === 'segment' && (
