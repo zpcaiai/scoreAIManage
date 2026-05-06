@@ -24,12 +24,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 复制构建好的前端文件
+# 复制构建好的前端文件和 Flask 应用
 COPY --from=builder /app/out ./out
-COPY app.py .
+COPY --from=builder /app/app.py .
 
+# Hugging Face Spaces 环境变量
 ENV BACKEND_URL=https://scoreaimanage.onrender.com
 ENV PORT=7860
+ENV HF_SPACE=1
 
 EXPOSE 7860
 

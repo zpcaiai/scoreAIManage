@@ -55,6 +55,11 @@ def health_check():
 
 def build_frontend():
     """构建前端应用"""
+    # Hugging Face Spaces 在 Docker 构建阶段已完成构建
+    if os.getenv('HF_SPACE'):
+        print("✅ Hugging Face Spaces: 使用预构建文件")
+        return os.path.exists('out')
+    
     print("🔨 构建前端应用...")
     try:
         # 检查是否已构建
