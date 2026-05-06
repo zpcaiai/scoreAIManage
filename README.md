@@ -8,6 +8,7 @@ sdk_version: 2.3.3
 python_version: '3.13'
 app_file: app.py
 pinned: false
+tags: [score, management, education]
 ---
 
 # ScoreAIManage - 学生成绩管理系统
