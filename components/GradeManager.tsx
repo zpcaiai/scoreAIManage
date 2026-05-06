@@ -21,12 +21,15 @@ interface Grade {
 interface Student {
   student_id: string;
   student_name: string;
+  student_number?: string;
   class_name: string;
+  seat_number?: number;
 }
 
 interface Subject {
   subject_id: string;
   subject_name: string;
+  full_score?: number;
 }
 
 interface Exam {
@@ -39,7 +42,7 @@ interface GradeManagerProps {
 }
 
 export default function GradeManager({ onDataChange }: GradeManagerProps) {
-  const [grades, setGrades] = useState<Grade[]>([]);
+  const [grades, setGrades] = useState<{[key: string]: string}>({});
   const [students, setStudents] = useState<Student[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [exams, setExams] = useState<Exam[]>([]);

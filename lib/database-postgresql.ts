@@ -21,11 +21,11 @@ export class PostgreSQLDatabase {
 
   private constructor() {
     const config: DatabaseConfig = {
-      host: process.env.DATABASE_HOST || 'localhost',
-      port: parseInt(process.env.DATABASE_PORT || '5432'),
-      database: process.env.DATABASE_NAME || 'grade_management',
-      user: process.env.DATABASE_USER || 'postgres',
-      password: process.env.DATABASE_PASSWORD || 'password',
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '5432'),
+      database: process.env.DB_NAME || 'scoremanage',
+      user: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD || 'password',
       ssl: process.env.DB_SSL === 'true',
       connectionTimeout: parseInt(process.env.DB_CONNECTION_TIMEOUT || '2000'),
       maxConnections: parseInt(process.env.DB_MAX_CONNECTIONS || '20')
@@ -45,11 +45,11 @@ export class PostgreSQLDatabase {
 
     // 监听连接池事件
     this.pool.on('connect', () => {
-      Logger.debug('New PostgreSQL connection established');
+      Logger.debug('New database connection established');
     });
 
     this.pool.on('error', (err) => {
-      Logger.error('PostgreSQL connection pool error', err);
+      Logger.error('Database connection pool error', err);
     });
   }
 
@@ -69,8 +69,8 @@ export class PostgreSQLDatabase {
       
       this.connected = true;
       Logger.info('PostgreSQL database connected successfully', {
-        host: process.env.DATABASE_HOST,
-        database: process.env.DATABASE_NAME,
+        host: process.env.DB_HOST,
+        database: process.env.DB_NAME,
         currentTime: result.rows[0].current_time
       });
       

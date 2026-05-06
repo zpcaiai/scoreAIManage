@@ -25,7 +25,11 @@ interface Class {
   class_name: string;
 }
 
-export default function StudentManager() {
+interface StudentManagerProps {
+  onDataChange?: () => void;
+}
+
+export default function StudentManager({ onDataChange }: StudentManagerProps) {
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [formData, setFormData] = useState({

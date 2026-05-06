@@ -52,6 +52,7 @@ interface BackupConfig {
   encrypt: boolean;
   destination: string;
   retentionDays: number;
+  description?: string;
 }
 
 export class BackupSystem {

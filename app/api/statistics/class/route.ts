@@ -59,7 +59,7 @@ export const GET = apiHandler(
         
         totalSum += avg;
         totalCount++;
-      }
+      });
       
       return {
         class_id: cls.class_id,

@@ -1,0 +1,60 @@
+services:
+  # Web Service
+  - type: web
+    name: scoreaimanage-api
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    rootDir: .
+    buildCommand: "npm run build"
+    startCommand: "npm start"
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - fromGroup: postgres-credentials
+
+  # PostgreSQL Database
+  - type: pserv
+    name: scoreaimanage-db
+    plan: free
+    region: oregon
+    databaseName: scoremanage
+    user: scoremanage_user
+    ipAllowList: []
+    connectionMethod: direct
+
+# Environment Groups
+envVarGroups:
+  - name: postgres-credentials
+    envVars:
+      - key: DATABASE_HOST
+        sync: false
+      - key: DATABASE_PORT
+        value: 5432
+      - key: DATABASE_NAME
+        value: scoremanage
+      - key: DATABASE_USER
+        sync: false
+      - key: DATABASE_PASSWORD
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+
+# Build Configuration
+build:
+  dependencies:
+    - name: node
+      version: "18"
+    - name: postgresql
+      version: "15"
+
+# Auto-Deploy Configuration
+autoDeploy: true
+
+# Custom Domains (if needed)
+# domains:
+#   - scoreaimanage.onrender.com

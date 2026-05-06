@@ -5,16 +5,26 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node server.js",
+    "start:next": "next start",
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "deploy": "chmod +x scripts/deploy.sh && ./scripts/deploy.sh"
   },
   "dependencies": {
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/pg": "^8.20.0",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.3",
     "next": "14.0.0",
+    "pg": "^8.20.0",
     "react": "^18",
     "react-dom": "^18"
   },

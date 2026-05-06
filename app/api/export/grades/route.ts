@@ -4,7 +4,15 @@ import { DataAccessLayer } from '@/lib/database';
 import { AuditLogger } from '@/lib/error-handler';
 import { UserRole } from '@/lib/auth';
 
-const dataAccess = new DataAccessLayer();
+// 延迟初始化数据库连接，避免在静态导出时连接
+let dataAccess: DataAccessLayer | null = null;
+
+function getDataAccess() {
+  if (!dataAccess) {
+    dataAccess = new DataAccessLayer();
+  }
+  return dataAccess;
+}
 
 // GET /api/export/grades - Export grades data
 export const GET = apiHandler(
@@ -16,17 +24,15 @@ export const GET = apiHandler(
     
     // Build filters
     const filters: any = {};
-    if (classId) filters.student_class_id = classId;
+    if (classId) filters.class_id = classId;
     if (examId) filters.exam_id = examId;
     
     // Get data
-    const [grades, students, subjects, exams, classes] = await Promise.all([
-      dataAccess.getGrades(filters),
-      dataAccess.getStudents(),
-      dataAccess.getSubjects(),
-      dataAccess.getExams(),
-      dataAccess.getClasses()
-    ]);
+    const grades = await getDataAccess().getGrades(filters);
+    const students = await getDataAccess().getStudents();
+    const subjects = await getDataAccess().getSubjects();
+    const exams = await getDataAccess().getExams();
+    const classes = await getDataAccess().getClasses();
     
     // Create lookup maps
     const studentMap = new Map(students.map(s => [s.student_id, s]));

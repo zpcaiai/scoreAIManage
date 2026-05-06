@@ -43,7 +43,11 @@ interface Exam {
   exam_name: string;
 }
 
-export default function GradeTable() {
+interface GradeTableProps {
+  refreshTrigger?: number;
+}
+
+export default function GradeTable({ refreshTrigger }: GradeTableProps) {
   const [grades, setGrades] = useState<Grade[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [exams, setExams] = useState<Exam[]>([]);
@@ -52,6 +56,13 @@ export default function GradeTable() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { authenticatedRequest } = useAuthenticatedApi();
+
+  // 监听refreshTrigger变化
+  useEffect(() => {
+    if (refreshTrigger !== undefined) {
+      fetchGrades();
+    }
+  }, [refreshTrigger]);
 
   const fetchClasses = async () => {
     try {
