@@ -4,6 +4,7 @@ import { useState } from "react";
 import GradeDistributionChart from "@/components/analytics/GradeDistributionChart";
 import ClassTrendChart from "@/components/analytics/ClassTrendChart";
 import StudentTrackChart from "@/components/analytics/StudentTrackChart";
+import SubjectSegmentChart from "@/components/analytics/SubjectSegmentChart";
 
 const tabs = [
   { key: "grade",   label: "📊 年级宏观", desc: "班级横向对比、分位数、分数段分布" },
@@ -47,7 +48,12 @@ export default function AnalyticsPage() {
 
         {/* 内容区 */}
         <div>
-          {activeTab === "grade"   && <GradeDistributionChart />}
+          {activeTab === "grade"   && (
+            <div className="space-y-6">
+              <GradeDistributionChart />
+              <SubjectSegmentChart />
+            </div>
+          )}
           {activeTab === "class"   && <ClassTrendChart />}
           {activeTab === "student" && <StudentTrackChart />}
         </div>

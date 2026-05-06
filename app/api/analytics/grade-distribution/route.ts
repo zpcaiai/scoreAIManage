@@ -18,19 +18,21 @@ function stdDev(nums: number[]): number {
   return Math.sqrt(variance);
 }
 
-// 分数段区间
+// 基于得分率的分数段（支持不同总分考试）
 function scoreSegments(scores: number[], total: number) {
+  // 统一转换为得分率百分比，消除总分差异
+  const pcts = scores.map(s => (s / total) * 100);
   const segments = [
-    { label: `≥${Math.round(total * 0.9)}(优秀)`, min: total * 0.9, max: Infinity },
-    { label: `${Math.round(total * 0.75)}-${Math.round(total * 0.9) - 1}(良好)`, min: total * 0.75, max: total * 0.9 },
-    { label: `${Math.round(total * 0.6)}-${Math.round(total * 0.75) - 1}(及格)`, min: total * 0.6, max: total * 0.75 },
-    { label: `<${Math.round(total * 0.6)}(待提高)`, min: 0, max: total * 0.6 },
+    { label: '≥90%(优秀)', min: 90, max: Infinity },
+    { label: '75-89%(良好)', min: 75, max: 90 },
+    { label: '60-74%(及格)', min: 60, max: 75 },
+    { label: '<60%(待提高)', min: 0, max: 60 },
   ];
   return segments.map(seg => ({
     label: seg.label,
-    count: scores.filter(s => s >= seg.min && s < seg.max).length,
-    rate: scores.length > 0
-      ? parseFloat(((scores.filter(s => s >= seg.min && s < seg.max).length / scores.length) * 100).toFixed(1))
+    count: pcts.filter(p => p >= seg.min && p < seg.max).length,
+    rate: pcts.length > 0
+      ? parseFloat(((pcts.filter(p => p >= seg.min && p < seg.max).length / pcts.length) * 100).toFixed(1))
       : 0,
   }));
 }

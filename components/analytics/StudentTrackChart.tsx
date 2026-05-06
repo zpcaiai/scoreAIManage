@@ -9,17 +9,20 @@ import {
 interface StudentSummary {
   student_id: string;
   student_name: string;
+  class_name: string;
   classification: { label: string; color: string; desc: string };
-  rank_improvement: number;
-  score_improvement: number;
-  current_rank: number;
+  class_rank_improvement: number;
+  grade_rank_improvement: number;
+  score_pct_improvement: number;
+  current_class_rank: number;
+  current_grade_rank: number;
   advice: string;
-  chart_data: { name: string; score: number; rank: number; 班级均分: number }[];
+  chart_data: { name: string; 得分率: number; 班级排名: number; 年级排名: number; 班级均分率: number; 年级均分率: number }[];
 }
 
 interface PriorityList {
-  need_attention: { name: string; rank: number; advice: string }[];
-  need_encouragement: { name: string; improvement: number }[];
+  need_attention: { name: string; class_rank: number; grade_rank: number; class_rank_change: number; grade_rank_change: number; advice: string }[];
+  need_encouragement: { name: string; class_rank_improvement: number; grade_rank_improvement: number }[];
   need_stability: { name: string; advice: string }[];
 }
 
@@ -106,9 +109,11 @@ export default function StudentTrackChart() {
               <tr>
                 <th className="border px-3 py-2 text-left">学生</th>
                 <th className="border px-3 py-2 text-center">分类</th>
-                <th className="border px-3 py-2 text-right">当前排名</th>
-                <th className="border px-3 py-2 text-right">名次变化</th>
-                <th className="border px-3 py-2 text-right">分数变化</th>
+                <th className="border px-3 py-2 text-right">班级排名</th>
+                <th className="border px-3 py-2 text-right">班级名次变化</th>
+                <th className="border px-3 py-2 text-right">年级排名</th>
+                <th className="border px-3 py-2 text-right">年级名次变化</th>
+                <th className="border px-3 py-2 text-right">得分率变化</th>
                 <th className="border px-3 py-2 text-center">操作</th>
               </tr>
             </thead>
@@ -121,12 +126,16 @@ export default function StudentTrackChart() {
                       {s.classification.label}
                     </span>
                   </td>
-                  <td className="border px-3 py-2 text-right">{s.current_rank}名</td>
-                  <td className={`border px-3 py-2 text-right font-medium ${s.rank_improvement > 0 ? "text-green-600" : s.rank_improvement < 0 ? "text-red-500" : "text-gray-400"}`}>
-                    {s.rank_improvement > 0 ? `↑${s.rank_improvement}` : s.rank_improvement < 0 ? `↓${Math.abs(s.rank_improvement)}` : "—"}
+                  <td className="border px-3 py-2 text-right">{s.current_class_rank}名</td>
+                  <td className={`border px-3 py-2 text-right font-medium ${s.class_rank_improvement > 0 ? "text-green-600" : s.class_rank_improvement < 0 ? "text-red-500" : "text-gray-400"}`}>
+                    {s.class_rank_improvement > 0 ? `↑${s.class_rank_improvement}` : s.class_rank_improvement < 0 ? `↓${Math.abs(s.class_rank_improvement)}` : "—"}
                   </td>
-                  <td className={`border px-3 py-2 text-right font-medium ${s.score_improvement > 0 ? "text-green-600" : s.score_improvement < 0 ? "text-red-500" : "text-gray-400"}`}>
-                    {s.score_improvement > 0 ? `+${s.score_improvement}` : s.score_improvement}
+                  <td className="border px-3 py-2 text-right">{s.current_grade_rank}名</td>
+                  <td className={`border px-3 py-2 text-right font-medium ${s.grade_rank_improvement > 0 ? "text-green-600" : s.grade_rank_improvement < 0 ? "text-red-500" : "text-gray-400"}`}>
+                    {s.grade_rank_improvement > 0 ? `↑${s.grade_rank_improvement}` : s.grade_rank_improvement < 0 ? `↓${Math.abs(s.grade_rank_improvement)}` : "—"}
+                  </td>
+                  <td className={`border px-3 py-2 text-right font-medium ${s.score_pct_improvement > 0 ? "text-green-600" : s.score_pct_improvement < 0 ? "text-red-500" : "text-gray-400"}`}>
+                    {s.score_pct_improvement > 0 ? `+${s.score_pct_improvement}%` : `${s.score_pct_improvement}%`}
                   </td>
                   <td className="border px-3 py-2 text-center">
                     <button
@@ -150,17 +159,31 @@ export default function StudentTrackChart() {
               ? <p className="text-sm text-gray-400">暂无</p>
               : priority.need_attention.map((s, i) => (
                 <div key={i} className="bg-red-50 border border-red-200 rounded p-3 mb-2 text-sm">
-                  <span className="font-semibold">{s.name}</span>（当前第{s.rank}名）
-                  <p className="text-gray-600 mt-1">{s.advice}</p>
+                  <div className="flex flex-wrap gap-3 items-center mb-1">
+                    <span className="font-semibold">{s.name}</span>
+                    <span className="text-gray-500">班级第{s.class_rank}名</span>
+                    <span className={s.class_rank_change < 0 ? 'text-red-500' : 'text-green-600'}>
+                      {s.class_rank_change > 0 ? `↑${s.class_rank_change}` : s.class_rank_change < 0 ? `↓${Math.abs(s.class_rank_change)}` : '—'}
+                    </span>
+                    <span className="text-gray-400">|</span>
+                    <span className="text-gray-500">年级第{s.grade_rank}名</span>
+                    <span className={s.grade_rank_change < 0 ? 'text-red-500' : 'text-green-600'}>
+                      {s.grade_rank_change > 0 ? `↑${s.grade_rank_change}` : s.grade_rank_change < 0 ? `↓${Math.abs(s.grade_rank_change)}` : '—'}
+                    </span>
+                  </div>
+                  <p className="text-gray-600">{s.advice}</p>
                 </div>
               ))}
           </div>
           <div>
             <h3 className="font-semibold text-green-700 mb-2">🌟 需激励表扬（持续进步）</h3>
             {priority.need_encouragement.map((s, i) => (
-              <div key={i} className="bg-green-50 border border-green-200 rounded p-2 mb-2 text-sm flex justify-between">
+              <div key={i} className="bg-green-50 border border-green-200 rounded p-2 mb-2 text-sm flex justify-between items-center">
                 <span className="font-semibold">{s.name}</span>
-                <span className="text-green-600">名次提升 ↑{s.improvement}</span>
+                <div className="flex gap-3 text-green-600">
+                  <span>班级 ↑{s.class_rank_improvement}</span>
+                  <span>年级 ↑{s.grade_rank_improvement}</span>
+                </div>
               </div>
             ))}
           </div>
@@ -184,24 +207,44 @@ export default function StudentTrackChart() {
             <span className={`text-sm px-3 py-1 rounded-full border ${labelColors[selectedStudent.classification.label]}`}>
               {selectedStudent.classification.label}
             </span>
-            <span className="text-sm text-gray-500">当前第{selectedStudent.current_rank}名</span>
+            <span className="text-sm text-gray-500">班级第{selectedStudent.current_class_rank}名 · 年级第{selectedStudent.current_grade_rank}名</span>
           </div>
           <p className="text-sm bg-blue-50 border border-blue-200 rounded p-3 text-blue-800">
             💡 {selectedStudent.advice}
           </p>
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={selectedStudent.chart_data}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis yAxisId="score" domain={[60, 155]} orientation="left" />
-              <YAxis yAxisId="rank" domain={[1, 50]} orientation="right" reversed />
-              <Tooltip />
-              <Legend />
-              <Line yAxisId="score" type="monotone" dataKey="score" name="个人分数" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} />
-              <Line yAxisId="score" type="monotone" dataKey="班级均分" stroke="#9ca3af" strokeWidth={1} strokeDasharray="5 5" dot={false} />
-              <Line yAxisId="rank" type="monotone" dataKey="rank" name="班级排名(右轴)" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 得分率趋势 */}
+            <div>
+              <p className="text-xs text-gray-500 mb-1 font-medium">得分率趋势（标准化，消除总分差异）</p>
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={selectedStudent.chart_data}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                  <YAxis domain={[40, 100]} unit="%" />
+                  <Tooltip formatter={(v: any) => `${v}%`} />
+                  <Legend />
+                  <Line type="monotone" dataKey="得分率" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="班级均分率" stroke="#10b981" strokeWidth={1} strokeDasharray="4 4" dot={false} />
+                  <Line type="monotone" dataKey="年级均分率" stroke="#9ca3af" strokeWidth={1} strokeDasharray="4 4" dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            {/* 双维度名次趋势 */}
+            <div>
+              <p className="text-xs text-gray-500 mb-1 font-medium">名次变化（值越小越好）</p>
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={selectedStudent.chart_data}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                  <YAxis reversed domain={[1, 'auto']} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="班级排名" stroke="#f59e0b" strokeWidth={2} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="年级排名" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
       )}
       {activeTab === "detail" && !selectedStudent && (
