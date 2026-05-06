@@ -1,16 +1,16 @@
 ---
 title: Scoreaimanage
-emoji: 📚
-colorFrom: green
-colorTo: blue
-sdk: gradio
-sdk_version: 6.14.0
+emoji: 🎓
+colorFrom: blue
+colorTo: green
+sdk: flask
+sdk_version: 2.3.3
 python_version: '3.13'
 app_file: app.py
 pinned: false
 ---
 
-# 学生成绩管理系统 scoreAIManage
+# ScoreAIManage - 学生成绩管理系统
 
 基于 Next.js 14 + PostgreSQL 的学生成绩管理系统，支持登录鉴权、班级/学生/成绩管理、统计分析和 AI 智能分析。
 

@@ -59,16 +59,37 @@ def build_frontend():
     try:
         # 检查是否已构建
         if not os.path.exists('out'):
-            # 运行Next.js构建
-            result = subprocess.run(
-                ['npm', 'run', 'build'],
-                capture_output=True,
-                text=True
-            )
-            if result.returncode != 0:
-                print(f"❌ 构建失败: {result.stderr}")
-                return False
-            print("✅ 前端构建成功")
+            # 临时重命名 API 路由文件夹以排除静态导出
+            api_path = 'app/api'
+            api_backup = 'app/_api_backup'
+            api_moved = False
+            
+            if os.path.exists(api_path):
+                print("📁 临时排除 API 路由以支持静态导出...")
+                os.rename(api_path, api_backup)
+                api_moved = True
+            
+            try:
+                # 运行Next.js构建
+                result = subprocess.run(
+                    ['npm', 'run', 'build'],
+                    capture_output=True,
+                    text=True
+                )
+                
+                # 恢复 API 路由文件夹
+                if api_moved and os.path.exists(api_backup):
+                    os.rename(api_backup, api_path)
+                
+                if result.returncode != 0:
+                    print(f"❌ 构建失败: {result.stderr}")
+                    return False
+                print("✅ 前端构建成功")
+            except Exception as e:
+                # 确保恢复 API 文件夹即使构建失败
+                if api_moved and os.path.exists(api_backup):
+                    os.rename(api_backup, api_path)
+                raise e
         else:
             print("✅ 前端已构建")
         return True

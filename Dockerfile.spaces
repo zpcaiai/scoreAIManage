@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
@@ -10,11 +10,28 @@ COPY . .
 ENV NEXT_PUBLIC_API_URL=https://scoreaimanage.onrender.com/api
 ENV NODE_ENV=production
 
+# 临时排除 API 路由并构建
+RUN mv app/api app/_api_backup 2>/dev/null || true
 RUN npm run build
+RUN mv app/_api_backup app/api 2>/dev/null || true
+
+# 第二阶段：Python + Flask
+FROM python:3.13-slim
+
+WORKDIR /app
+
+# 安装 Python 依赖
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 复制构建好的前端文件
+COPY --from=builder /app/out ./out
+COPY app.py .
+
+ENV BACKEND_URL=https://scoreaimanage.onrender.com
+ENV PORT=7860
 
 EXPOSE 7860
 
-ENV PORT=7860
-ENV HOSTNAME=0.0.0.0
+CMD ["python", "app.py"]
 
-CMD ["npm", "start"]
