@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchSummariesForExam, fetchClasses } from '@/lib/analytics-db';
 
 // 标准化分数：用Z-score消除不同考试总分/均分差异
 function zScore(score: number, avg: number, std: number): number {
@@ -29,12 +30,147 @@ function genAdvice(name: string, label: string, classRankImprove: number, gradeR
   return `${name}成绩稳定（${classDir}，${gradeDir}），建议适当激励，设定目标突破瓶颈。`;
 }
 
+// ── shared result builder ────────────────────────────────────────────────
+function buildResult(classId: string, className: string, gradeTotalStudents: number, examStats: any[], studentAnalysis: any[], studentId: string | null, dataSource: string) {
+  const byLabel: Record<string, typeof studentAnalysis> = {
+    '持续进步': studentAnalysis.filter(s => s.classification.label === '持续进步'),
+    '退步预警': studentAnalysis.filter(s => s.classification.label === '退步预警'),
+    '波动较大': studentAnalysis.filter(s => s.classification.label === '波动较大'),
+    '成绩稳定': studentAnalysis.filter(s => s.classification.label === '成绩稳定'),
+  };
+  const result: any = {
+    success: true, data_source: dataSource,
+    class_id: classId, class_name: className,
+    grade_total_students: gradeTotalStudents,
+    exam_stats: examStats,
+    summary: { total: studentAnalysis.length, improving: byLabel['持续进步'].length, declining: byLabel['退步预警'].length, volatile: byLabel['波动较大'].length, stable: byLabel['成绩稳定'].length },
+    priority_list: {
+      need_attention: byLabel['退步预警'].map(s => ({ name: s.student_name, class_rank: s.current_class_rank, grade_rank: s.current_grade_rank, class_rank_change: s.class_rank_improvement, grade_rank_change: s.grade_rank_improvement, advice: s.advice })),
+      need_encouragement: byLabel['持续进步'].slice(0, 5).map(s => ({ name: s.student_name, class_rank_improvement: s.class_rank_improvement, grade_rank_improvement: s.grade_rank_improvement })),
+      need_stability: byLabel['波动较大'].map(s => ({ name: s.student_name, advice: s.advice })),
+    },
+    by_label: byLabel,
+  };
+  if (studentId) result.student_detail = studentAnalysis.find((s: any) => String(s.student_id) === studentId) || null;
+  else result.all_students = studentAnalysis;
+  return result;
+}
+
+// ── DB path: build allStudents from grade_summaries across multiple exams ──
+async function loadFromDB(classId: string) {
+  const EXAM_DEFS = [
+    { exam_type: 'monthly', semester: '第一学期', academic_year: '2024-2025', name: '第一次月考' },
+    { exam_type: 'midterm', semester: '第一学期', academic_year: '2024-2025', name: '期中考试' },
+    { exam_type: 'monthly', semester: '第二学期', academic_year: '2024-2025', name: '第二次月考' },
+    { exam_type: 'final',   semester: '第一学期', academic_year: '2024-2025', name: '期末考试' },
+  ];
+
+  const classes = await fetchClasses();
+  const targetClass = classes.find(c => String(c.class_id) === classId) || classes[0];
+  if (!targetClass) throw new Error('no class');
+
+  // Fetch summaries for each exam
+  const examDataList = await Promise.all(
+    EXAM_DEFS.map(async ed => {
+      const rows = await fetchSummariesForExam(ed.exam_type, ed.semester, ed.academic_year);
+      return { ...ed, rows };
+    })
+  );
+
+  // Filter to exams that have data
+  const validExams = examDataList.filter(e => e.rows.length > 0);
+  if (validExams.length < 2) throw new Error('insufficient exam data');
+
+  // Build student map: student_id → { name, class, scores[] }
+  const studentMap = new Map<number, { name: string; class_id: number; class_name: string; scores: { examName: string; total: number; classRank: number; gradeRank: number }[] }>();
+
+  validExams.forEach(ed => {
+    const allScores = ed.rows.map(r => Number(r.ten_subjects_total));
+    const allAvg = allScores.reduce((a, b) => a + b, 0) / allScores.length;
+
+    ed.rows.forEach(r => {
+      if (!studentMap.has(r.student_id)) {
+        studentMap.set(r.student_id, { name: r.student_name, class_id: r.class_id, class_name: r.class_name, scores: [] });
+      }
+      studentMap.get(r.student_id)!.scores.push({
+        examName: ed.name,
+        total: Number(r.ten_subjects_total),
+        classRank: r.class_rank_ten_subjects,
+        gradeRank: r.ten_subjects_rank,
+      });
+    });
+  });
+
+  // Build exam total_score map (use 750 as default since subjects.full_score sum ≈ 750)
+  const exams = validExams.map((e, i) => ({ id: `e${i}`, name: e.name, total_score: 750 }));
+
+  // Filter to target class
+  const targetStudents = Array.from(studentMap.values())
+    .filter(s => String(s.class_id) === classId || s.class_id === targetClass.class_id);
+  const allStudents = Array.from(studentMap.values());
+
+  return { exams, targetStudents, allStudents, targetClass };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const classId = searchParams.get('classId') || 'c0';
     const studentId = searchParams.get('studentId');
 
+    // ── Try database first ──────────────────────────────────────────────
+    let useDB = false;
+    let dbResult: Awaited<ReturnType<typeof loadFromDB>> | null = null;
+    try {
+      dbResult = await loadFromDB(classId);
+      useDB = true;
+    } catch { /* fall through to mock */ }
+
+    if (useDB && dbResult) {
+      const { exams, targetStudents, allStudents, targetClass } = dbResult;
+
+      const examStats = exams.map((exam, ei) => {
+        const classScores = targetStudents.map(s => s.scores[ei]?.total ?? 0).filter(Boolean);
+        const gradeScores = allStudents.map(s => s.scores[ei]?.total ?? 0).filter(Boolean);
+        const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / (arr.length || 1);
+        const std = (arr: number[]) => { const a = avg(arr); return Math.sqrt(arr.reduce((s, b) => s + Math.pow(b - a, 2), 0) / (arr.length || 1)); };
+        return { ...exam, class_avg: parseFloat(avg(classScores).toFixed(2)), class_std: parseFloat(std(classScores).toFixed(2)), grade_avg: parseFloat(avg(gradeScores).toFixed(2)), grade_std: parseFloat(std(gradeScores).toFixed(2)), class_size: classScores.length, grade_size: gradeScores.length };
+      });
+
+      const studentAnalysis = targetStudents.map(student => {
+        const examRecords = exams.map((exam, ei) => {
+          const rec = student.scores[ei];
+          const stat = examStats[ei];
+          const score = rec?.total ?? 0;
+          return {
+            exam_id: exam.id, exam_name: exam.name, total_score: exam.total_score, score,
+            score_pct: parseFloat(((score / exam.total_score) * 100).toFixed(1)),
+            class_rank: rec?.classRank ?? 0, class_rank_change: ei > 0 ? (student.scores[ei - 1]?.classRank ?? 0) - (rec?.classRank ?? 0) : 0,
+            grade_rank: rec?.gradeRank ?? 0, grade_rank_change: ei > 0 ? (student.scores[ei - 1]?.gradeRank ?? 0) - (rec?.gradeRank ?? 0) : 0,
+            class_z: zScore(score, stat.class_avg, stat.class_std),
+            grade_z: zScore(score, stat.grade_avg, stat.grade_std),
+            class_avg: stat.class_avg, grade_avg: stat.grade_avg,
+          };
+        });
+        const classification = classifyStudent(examRecords.map(r => r.grade_z));
+        const first = examRecords[0], last = examRecords[examRecords.length - 1];
+        const classRI = (first.class_rank || 0) - (last.class_rank || 0);
+        const gradeRI = (first.grade_rank || 0) - (last.grade_rank || 0);
+        return {
+          student_id: student.class_id * 1000 + targetStudents.indexOf(student),
+          student_name: student.name, class_name: student.class_name, classification,
+          class_rank_improvement: classRI, grade_rank_improvement: gradeRI,
+          score_pct_improvement: parseFloat((last.score_pct - first.score_pct).toFixed(1)),
+          current_class_rank: last.class_rank, current_grade_rank: last.grade_rank,
+          exam_records: examRecords, advice: genAdvice(student.name, classification.label, classRI, gradeRI),
+          chart_data: examRecords.map(r => ({ name: r.exam_name, 得分率: r.score_pct, 班级排名: r.class_rank, 年级排名: r.grade_rank, 班级均分率: parseFloat(((r.class_avg / r.total_score) * 100).toFixed(1)), 年级均分率: parseFloat(((r.grade_avg / r.total_score) * 100).toFixed(1)) })),
+        };
+      });
+
+      return NextResponse.json(buildResult(classId, targetClass.class_name, allStudents.length, examStats, studentAnalysis, studentId, 'database'));
+    }
+
+    // ── Mock fallback ───────────────────────────────────────────────────
     const exams = [
       { id: 'e1', name: '第一次月考', total_score: 750 },
       { id: 'e2', name: '第二次月考', total_score: 750 },
@@ -168,55 +304,8 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const byLabel: Record<string, typeof studentAnalysis> = {
-      '持续进步': studentAnalysis.filter(s => s.classification.label === '持续进步'),
-      '退步预警': studentAnalysis.filter(s => s.classification.label === '退步预警'),
-      '波动较大': studentAnalysis.filter(s => s.classification.label === '波动较大'),
-      '成绩稳定': studentAnalysis.filter(s => s.classification.label === '成绩稳定'),
-    };
-
-    const result: any = {
-      success: true,
-      class_id: classId,
-      class_name: classes.find(c => c.id === classId)?.name || classId,
-      grade_total_students: allStudents.length,
-      exam_stats: examStats,
-      summary: {
-        total: studentAnalysis.length,
-        improving: byLabel['持续进步'].length,
-        declining: byLabel['退步预警'].length,
-        volatile: byLabel['波动较大'].length,
-        stable: byLabel['成绩稳定'].length,
-      },
-      priority_list: {
-        need_attention: byLabel['退步预警'].map(s => ({
-          name: s.student_name,
-          class_rank: s.current_class_rank,
-          grade_rank: s.current_grade_rank,
-          class_rank_change: s.class_rank_improvement,
-          grade_rank_change: s.grade_rank_improvement,
-          advice: s.advice,
-        })),
-        need_encouragement: byLabel['持续进步'].slice(0, 5).map(s => ({
-          name: s.student_name,
-          class_rank_improvement: s.class_rank_improvement,
-          grade_rank_improvement: s.grade_rank_improvement,
-        })),
-        need_stability: byLabel['波动较大'].map(s => ({
-          name: s.student_name,
-          advice: s.advice,
-        })),
-      },
-      by_label: byLabel,
-    };
-
-    if (studentId) {
-      result.student_detail = studentAnalysis.find(s => s.student_id === studentId) || null;
-    } else {
-      result.all_students = studentAnalysis;
-    }
-
-    return NextResponse.json(result);
+    const mockClasses = classes as { id: string; name: string; baseDelta: number }[];
+    return NextResponse.json(buildResult(classId, mockClasses.find(c => c.id === classId)?.name || classId, allStudents.length, examStats, studentAnalysis, studentId, 'mock'));
   } catch (error) {
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 });
   }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchSubjectScoresForClass, fetchClasses, fetchSubjects } from '@/lib/analytics-db';
 
 const SUBJECTS = ['语文', '数学', '英语', '物理', '化学', '生物', '政治', '历史', '地理', '信息'];
 const CLASSES = [
@@ -28,52 +29,90 @@ function segments(scores: number[]) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const subjectFilter = searchParams.get('subject'); // null = 全部科目
+    const subjectFilter = searchParams.get('subject');
+    const examType    = searchParams.get('examType')    || 'midterm';
+    const semester    = searchParams.get('semester')    || '第一学期';
+    const academicYear = searchParams.get('academicYear') || '2024-2025';
 
-    // 生成模拟数据：班级 × 科目 × 45人
-    const rawData: Record<string, Record<string, number[]>> = {};
-    CLASSES.forEach(cls => {
-      rawData[cls.id] = {};
-      SUBJECTS.forEach((sub, si) => {
-        rawData[cls.id][sub] = Array.from({ length: 45 }, () => {
-          const base = 90 + cls.delta + (si % 3) * 3;
-          return Math.min(150, Math.max(30, parseFloat((base + (Math.random() - 0.5) * 40).toFixed(1))));
+    // ── Try database ──────────────────────────────────────────────────
+    let rawData: Record<string, Record<string, { scores: number[]; full: number }>> = {};
+    let subjectList: string[] = [];
+    let classList: { id: string; name: string }[] = [];
+    let dataSource = 'database';
+
+    try {
+      const dbClasses = await fetchClasses();
+      const dbSubjects = await fetchSubjects();
+      if (dbClasses.length === 0 || dbSubjects.length === 0) throw new Error('empty');
+
+      subjectList = dbSubjects.map(s => s.subject_name);
+      classList = dbClasses.map(c => ({ id: String(c.class_id), name: c.class_name }));
+
+      // Fetch per-class subject scores in parallel
+      await Promise.all(dbClasses.map(async cls => {
+        const rows = await fetchSubjectScoresForClass(cls.class_id, examType, semester, academicYear);
+        rawData[String(cls.class_id)] = {};
+        rows.forEach(r => {
+          const sub = r.subject_name;
+          if (!rawData[String(cls.class_id)][sub]) rawData[String(cls.class_id)][sub] = { scores: [], full: Number(r.full_score) };
+          rawData[String(cls.class_id)][sub].scores.push(Number(r.score));
+        });
+      }));
+
+      // If all empty, fall through to mock
+      const hasData = Object.values(rawData).some(cls => Object.values(cls).some(s => s.scores.length > 0));
+      if (!hasData) throw new Error('no scores');
+    } catch {
+      dataSource = 'mock';
+      subjectList = SUBJECTS;
+      classList = CLASSES.map(c => ({ id: c.id, name: c.name }));
+      CLASSES.forEach(cls => {
+        rawData[cls.id] = {};
+        SUBJECTS.forEach((sub, si) => {
+          const fullScore = 150;
+          const scores = Array.from({ length: 45 }, () =>
+            Math.min(fullScore, Math.max(30, parseFloat((90 + cls.delta + (si % 3) * 3 + (Math.random() - 0.5) * 40).toFixed(1))))
+          );
+          rawData[cls.id][sub] = { scores, full: fullScore };
         });
       });
-    });
+    }
 
-    const targetSubjects = subjectFilter ? [subjectFilter] : SUBJECTS;
+    const targetSubjects = subjectFilter ? [subjectFilter] : subjectList;
 
     // 按科目 → 班级 整理，班级按均分从高到低排序
     const bySubject = targetSubjects.map(sub => {
-      const classData = CLASSES.map(cls => {
-        const scores = rawData[cls.id][sub] || [];
-        const seg = segments(scores);
-        // 计算比率
+      const classData = classList.map(cls => {
+        const entry = rawData[cls.id]?.[sub];
+        const scoreArr: number[] = entry?.scores ?? [];
+        const fullScore: number = entry?.full ?? 150;
+        const seg = segments(scoreArr);
+        // 得分率分数段（标准化，支持不同总分科目）
         const segs = [
-          { label: '≥135(优秀)', count: seg['≥135(优秀)'].count },
-          { label: '120-134(良好)', count: seg['120-134(良好)'].count },
-          { label: '90-119(及格)', count: seg['90-119(及格)'].count },
-          { label: '<90(待提高)', count: seg['<90(待提高)'].count },
-        ].map(s => ({ ...s, rate: parseFloat(((s.count / scores.length) * 100).toFixed(1)) }));
+          { label: `≥${Math.round(fullScore * 0.9)}(优秀)`, min: fullScore * 0.9 },
+          { label: `${Math.round(fullScore * 0.75)}-${Math.round(fullScore * 0.9 - 1)}(良好)`, min: fullScore * 0.75 },
+          { label: `${Math.round(fullScore * 0.6)}-${Math.round(fullScore * 0.75 - 1)}(及格)`, min: fullScore * 0.6 },
+          { label: `<${Math.round(fullScore * 0.6)}(待提高)`, min: 0 },
+        ].map((s, idx, arr) => {
+          const max = idx === 0 ? Infinity : arr[idx - 1].min;
+          const count = scoreArr.filter(sc => sc >= s.min && sc < max).length;
+          return { label: s.label, count, rate: scoreArr.length ? parseFloat(((count / scoreArr.length) * 100).toFixed(1)) : 0 };
+        });
 
         return {
-          class_id: cls.id,
-          class_name: cls.name,
-          avg: seg.avg,
-          max: seg.max,
-          min: seg.min,
-          count: seg.count,
+          class_id: cls.id, class_name: cls.name,
+          avg: seg.avg, max: seg.max, min: seg.min, count: seg.count,
           segments: segs,
-          sorted_scores: seg.sorted_scores.slice(0, 10), // 前10名展示
+          sorted_scores: seg.sorted_scores.slice(0, 10),
         };
-      }).sort((a, b) => b.avg - a.avg); // 班级从高到低
+      }).sort((a, b) => b.avg - a.avg);
 
-      // 柱形图数据（按分数段对比各班）
-      const chartData = ['≥135(优秀)', '120-134(良好)', '90-119(及格)', '<90(待提高)'].map(seg => {
-        const entry: any = { segment: seg };
+      // 柱形图数据（按分数段对比各班，使用动态标签）
+      const segLabels = classData[0]?.segments.map(s => s.label) ?? [];
+      const chartData = segLabels.map(segLabel => {
+        const entry: any = { segment: segLabel };
         classData.forEach(cls => {
-          entry[cls.class_name] = cls.segments.find(s => s.label === seg)?.rate || 0;
+          entry[cls.class_name] = cls.segments.find(s => s.label === segLabel)?.rate || 0;
         });
         return entry;
       });
@@ -99,8 +138,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      data_source: dataSource,
       subjects: targetSubjects,
-      classes: CLASSES.map(c => c.name),
+      classes: classList.map(c => c.name),
       by_subject: bySubject,
       suggestions,
     });
