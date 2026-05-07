@@ -35,7 +35,9 @@ export function generateToken(user: User): string {
 // JWT token verification
 export function verifyToken(token: string): User | null {
   try {
+    console.log('[verifyToken] Attempting to verify token');
     const decoded = jwt.verify(token, JWT_SECRET) as any;
+    console.log('[verifyToken] Token decoded successfully:', decoded);
     return {
       id: decoded.id,
       username: decoded.username,
@@ -43,6 +45,7 @@ export function verifyToken(token: string): User | null {
       permissions: decoded.permissions
     };
   } catch (error) {
+    console.error('[verifyToken] Token verification failed:', error);
     return null;
   }
 }
@@ -59,35 +62,22 @@ export function authenticate(request: NextRequest): User | null {
   return verifyToken(token);
 }
 
-// Authorization middleware
+// Authorization middleware (only teacher role now)
 export function authorize(user: User, requiredRole: UserRole): boolean {
-  const roleHierarchy = {
-    [UserRole.ADMIN]: 3,
-    [UserRole.TEACHER]: 2,
-    [UserRole.STUDENT]: 1
-  };
-  
-  return roleHierarchy[user.role] >= roleHierarchy[requiredRole];
+  return user.role === requiredRole;
 }
 
-// Permission check
+// Permission check (no admin privilege anymore)
 export function hasPermission(user: User, permission: string): boolean {
-  return user.permissions.includes(permission) || user.role === UserRole.ADMIN;
+  return user.permissions.includes(permission);
 }
 
-// Default permissions for each role
+// Default permissions for teacher role (unified admin and teacher)
 export const DEFAULT_PERMISSIONS = {
-  [UserRole.ADMIN]: [
+  [UserRole.TEACHER]: [
     'read:classes', 'write:classes', 'delete:classes',
     'read:students', 'write:students', 'delete:students',
     'read:grades', 'write:grades', 'delete:grades',
     'read:statistics', 'export:data', 'manage:users'
-  ],
-  [UserRole.TEACHER]: [
-    'read:classes', 'read:students', 'write:students',
-    'read:grades', 'write:grades', 'read:statistics'
-  ],
-  [UserRole.STUDENT]: [
-    'read:own:grades', 'read:own:profile'
   ]
 };

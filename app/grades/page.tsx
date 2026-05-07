@@ -76,7 +76,7 @@ function GradesPageContent() {
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900">学生成绩管理系统</h2>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">
-                欢迎, {user?.username} ({user?.role === 'admin' ? '管理员' : user?.role === 'teacher' ? '教师' : '学生'})
+                欢迎, {user?.username} (教师)
               </span>
               <button
                 onClick={handleLogout}
@@ -138,7 +138,7 @@ function GradesPageContent() {
 
 export default function GradesPage() {
   return (
-    <ProtectedRoute requiredRole="student">
+    <ProtectedRoute requiredRole="teacher">
       <GradesPageContent />
     </ProtectedRoute>
   );

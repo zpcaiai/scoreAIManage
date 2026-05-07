@@ -11,7 +11,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
-  hasRole: (role: 'admin' | 'teacher' | 'student') => boolean;
+  hasRole: (role: 'teacher') => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -65,17 +65,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
+      console.log('[AuthContext] Starting login for:', username);
       const response = await apiClient.login({ username, password });
+      console.log('[AuthContext] Login response:', response);
       
       if (response.success) {
+        console.log('[AuthContext] Login successful, setting user and token');
         setUser(response.data.user);
         setToken(response.data.token);
         return true;
       }
       
+      console.log('[AuthContext] Login failed: response.success is false');
       return false;
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('[AuthContext] Login error:', error);
       return false;
     }
   };
@@ -96,7 +100,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return authUtils.hasPermission(user, permission);
   };
 
-  const hasRole = (role: 'admin' | 'teacher' | 'student'): boolean => {
+  const hasRole = (role: 'teacher'): boolean => {
     return authUtils.hasRole(user, role);
   };
 
@@ -131,7 +135,7 @@ export function useAuth(): AuthContextType {
 // Higher-order component for protected routes
 interface ProtectedRouteProps {
   children: ReactNode;
-  requiredRole?: 'admin' | 'teacher' | 'student';
+  requiredRole?: 'teacher';
   requiredPermission?: string;
   fallback?: ReactNode;
 }

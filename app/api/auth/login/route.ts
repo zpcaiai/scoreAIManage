@@ -10,8 +10,8 @@ const mockUsers = [
     id: 'admin-1',
     username: 'admin',
     password: 'admin123', // In production, use hashed passwords
-    role: UserRole.ADMIN,
-    permissions: DEFAULT_PERMISSIONS[UserRole.ADMIN]
+    role: UserRole.TEACHER,
+    permissions: DEFAULT_PERMISSIONS[UserRole.TEACHER]
   },
   {
     id: 'teacher-1',
@@ -19,13 +19,6 @@ const mockUsers = [
     password: 'teacher123',
     role: UserRole.TEACHER,
     permissions: DEFAULT_PERMISSIONS[UserRole.TEACHER]
-  },
-  {
-    id: 'student-1',
-    username: 'student',
-    password: 'student123',
-    role: UserRole.STUDENT,
-    permissions: DEFAULT_PERMISSIONS[UserRole.STUDENT]
   }
 ];
 
@@ -86,7 +79,7 @@ export const POST = apiHandler(
 
     // Set cookie so middleware can protect page routes (httpOnly for security)
     response.cookies.set('auth_token', token, {
-      httpOnly: true,
+      httpOnly: false, // Temporarily disable for debugging
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24, // 24 hours

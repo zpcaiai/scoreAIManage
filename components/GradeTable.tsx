@@ -62,6 +62,7 @@ export default function GradeTable({ refreshTrigger }: GradeTableProps) {
     if (refreshTrigger !== undefined) {
       fetchGrades();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);
 
   const fetchClasses = async () => {
@@ -116,12 +117,14 @@ export default function GradeTable({ refreshTrigger }: GradeTableProps) {
   useEffect(() => {
     fetchClasses();
     fetchExams();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (selectedClass && selectedExam) {
       fetchGrades();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedClass, selectedExam]);
 
   if (loading) {

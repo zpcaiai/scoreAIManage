@@ -8,28 +8,31 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
-// Mock database for deployment - will be replaced with actual implementation
-const mockDatabase = {
-  healthCheck: async () => ({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    connectionCount: 1,
-    idleCount: 0,
-    totalCount: 1
-  })
-};
+
+// Import PostgreSQL database
+const { getDatabase } = require('./lib/database');
+
+let db = null;
 
 const initializeDatabase = async () => {
-  console.log('🗄️  Database initialized (mock mode for deployment)');
+  try {
+    db = getDatabase();
+    await db.connect();
+    console.log('🗄️  PostgreSQL database connected successfully');
+  } catch (error) {
+    console.error('❌ Failed to connect to PostgreSQL database:', error.message);
+    throw error;
+  }
 };
 
 const Logger = {
   info: (message, meta = {}) => console.log(`[INFO] ${message}`, meta),
   error: (message, error) => console.error(`[ERROR] ${message}`, error),
+  warn: (message, meta = {}) => console.log(`[WARN] ${message}`, meta),
 };
 
 // Load environment variables
-require('dotenv').config({ path: '.env.production' });
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -85,7 +88,7 @@ app.use((req, res, next) => {
 app.get('/api/health', async (req, res) => {
   try {
     // Check database connection
-    const health = await mockDatabase.healthCheck();
+    const health = await db.healthCheck();
     
     res.status(200).json({
       status: 'healthy',
@@ -191,16 +194,25 @@ app.use((error, req, res, next) => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   Logger.info('SIGTERM received, shutting down gracefully');
-  
-  // Mock database cleanup
-  Logger.info('Database connections closed (mock mode)');
+  try {
+    if (db) await db.disconnect();
+    Logger.info('Database connections closed');
+  } catch (error) {
+    Logger.error('Error closing database connections', error);
+  }
   process.exit(0);
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   Logger.info('SIGINT received, shutting down gracefully');
+  try {
+    if (db) await db.disconnect();
+    Logger.info('Database connections closed');
+  } catch (error) {
+    Logger.error('Error closing database connections', error);
+  }
   process.exit(0);
 });
 

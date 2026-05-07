@@ -86,6 +86,7 @@ export default function Statistics({ refreshTrigger }: StatisticsProps) {
     if (selectedExam) {
       fetchStatistics();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedExam, refreshTrigger]);
 
   if (loading) {

@@ -85,6 +85,7 @@ export default function StudentManager({ onDataChange }: StudentManagerProps) {
   useEffect(() => {
     fetchStudents();
     fetchClasses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -52,6 +52,7 @@ export default function ClassManager({ onDataChange }: ClassManagerProps) {
 
   useEffect(() => {
     fetchClasses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {

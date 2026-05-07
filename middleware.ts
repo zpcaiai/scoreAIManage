@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 
+// Force Node.js runtime for crypto module support
+export const runtime = 'nodejs';
+
 // Public paths that do not require authentication
 const PUBLIC_PATHS = ['/login', '/api/auth/login'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  console.log('[Middleware] Request to:', pathname);
 
   // Allow public paths and Next.js internals
   if (
@@ -13,6 +18,7 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon')
   ) {
+    console.log('[Middleware] Public path, allowing');
     return NextResponse.next();
   }
 
@@ -48,15 +54,20 @@ export function middleware(request: NextRequest) {
   // For page routes, check for the auth token stored in localStorage via a cookie fallback.
   // Since middleware cannot access localStorage, we rely on a short-lived cookie set at login.
   const tokenCookie = request.cookies.get('auth_token');
+  console.log('[Middleware] Cookie check:', tokenCookie ? 'found' : 'not found');
 
   if (!tokenCookie?.value) {
+    console.log('[Middleware] No cookie, redirecting to login');
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   const user = verifyToken(tokenCookie.value);
+  console.log('[Middleware] Token verification:', user ? 'valid' : 'invalid');
+  
   if (!user) {
+    console.log('[Middleware] Invalid token, redirecting to login');
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     const response = NextResponse.redirect(loginUrl);
@@ -64,6 +75,7 @@ export function middleware(request: NextRequest) {
     return response;
   }
 
+  console.log('[Middleware] Authentication successful, allowing');
   return NextResponse.next();
 }
 

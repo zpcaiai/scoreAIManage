@@ -10,9 +10,7 @@ const logPage = (action: string, details?: any) => {
 };
 
 const DEMO_ACCOUNTS = [
-  { label: '管理员', username: 'admin', password: 'admin123', color: 'bg-purple-100 text-purple-700 border-purple-200', icon: '👑' },
   { label: '教师', username: 'teacher', password: 'teacher123', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: '👨‍🏫' },
-  { label: '学生', username: 'student', password: 'student123', color: 'bg-green-100 text-green-700 border-green-200', icon: '🎓' },
 ];
 
 export default function LoginPage() {
@@ -36,7 +34,6 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     logPage('LOGIN_SUBMIT', { username: username.trim() });
     e.preventDefault();
-    e.preventDefault();
     if (!username.trim() || !password.trim()) {
       setError('请输入用户名和密码');
       return;
@@ -47,11 +44,15 @@ export default function LoginPage() {
     try {
       logPage('LOGIN_ATTEMPT', { username: username.trim() });
       const success = await login(username.trim(), password);
+      console.log('[LoginPage] Login result:', success);
       if (success) {
         const redirect = searchParams.get('redirect') || '/grades';
-        logPage('LOGIN_SUCCESS', { username: username.trim(), redirectTo: redirect });
-        router.push(redirect);
-        router.refresh();
+        // Remove trailing slash if present
+        const cleanRedirect = redirect.endsWith('/') ? redirect.slice(0, -1) : redirect;
+        logPage('LOGIN_SUCCESS', { username: username.trim(), redirectTo: cleanRedirect });
+        console.log('[LoginPage] Redirecting to:', cleanRedirect);
+        // Use window.location.href for forced navigation
+        window.location.href = cleanRedirect;
       } else {
         logPage('LOGIN_FAILED', { username: username.trim(), reason: 'invalid_credentials' });
         setError('用户名或密码错误，请重试');

@@ -2,7 +2,7 @@
 export interface AuthUser {
   id: string;
   username: string;
-  role: 'admin' | 'teacher' | 'student';
+  role: 'teacher';
   permissions: string[];
 }
 
@@ -113,12 +113,15 @@ export class SecureApiClient {
 
   // Authentication methods
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await this.request<AuthResponse>('/auth/login', {
+    console.log('[apiClient] Starting login request to /auth/login/');
+    const response = await this.request<AuthResponse>('/auth/login/', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
+    console.log('[apiClient] Login response received:', response);
 
     if (response.success) {
+      console.log('[apiClient] Setting token:', response.data.token);
       this.setToken(response.data.token);
     }
 
@@ -253,20 +256,13 @@ export const authUtils = {
   // Check if user has specific permission
   hasPermission(user: AuthUser | null, permission: string): boolean {
     if (!user) return false;
-    return user.permissions.includes(permission) || user.role === 'admin';
+    return user.permissions.includes(permission);
   },
 
-  // Check if user has specific role or higher
-  hasRole(user: AuthUser | null, requiredRole: 'admin' | 'teacher' | 'student'): boolean {
+  // Check if user has specific role (only teacher role now)
+  hasRole(user: AuthUser | null, requiredRole: 'teacher'): boolean {
     if (!user) return false;
-    
-    const roleHierarchy = {
-      admin: 3,
-      teacher: 2,
-      student: 1
-    };
-    
-    return roleHierarchy[user.role] >= roleHierarchy[requiredRole];
+    return user.role === requiredRole;
   },
 
   // Get user display name

@@ -13,11 +13,14 @@ interface RateLimitConfig {
   skipFailedRequests?: boolean;
 }
 
-// Default rate limits by role
-const RATE_LIMITS: Record<UserRole, RateLimitConfig> = {
-  [UserRole.ADMIN]: { windowMs: 15 * 60 * 1000, maxRequests: 1000 }, // 1000 requests per 15 minutes
-  [UserRole.TEACHER]: { windowMs: 15 * 60 * 1000, maxRequests: 500 }, // 500 requests per 15 minutes
-  [UserRole.STUDENT]: { windowMs: 15 * 60 * 1000, maxRequests: 100 } // 100 requests per 15 minutes
+// Default rate limits by role (only teacher now)
+const RATE_LIMITS = {
+  [UserRole.TEACHER]: { 
+    windowMs: 15 * 60 * 1000, 
+    maxRequests: 1000,
+    skipSuccessfulRequests: false,
+    skipFailedRequests: false
+  } // 1000 requests per 15 minutes
 };
 
 // Rate limiting middleware
@@ -26,7 +29,7 @@ export function rateLimit(config?: Partial<RateLimitConfig>) {
     const clientIp = getClientIp(request);
     const key = `rate_limit:${clientIp}:${user?.role || 'anonymous'}`;
     
-    const defaultConfig = RATE_LIMITS[user?.role || UserRole.STUDENT];
+    const defaultConfig = RATE_LIMITS[UserRole.TEACHER];
     const limitConfig: RateLimitConfig = {
       windowMs: config?.windowMs ?? defaultConfig.windowMs,
       maxRequests: config?.maxRequests ?? defaultConfig.maxRequests,

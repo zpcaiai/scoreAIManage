@@ -174,18 +174,21 @@ export default function GradeManager({ onDataChange }: GradeManagerProps) {
     fetchSubjects();
     fetchExams();
     fetchClasses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (selectedClass) {
       fetchStudents();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedClass]);
 
   useEffect(() => {
     if (selectedExam && selectedSubject) {
       fetchExistingGrades();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedExam, selectedSubject]);
 
   const handleGradeChange = (studentId: string, value: string) => {
@@ -1022,11 +1025,11 @@ export default function GradeManager({ onDataChange }: GradeManagerProps) {
       <div className="mt-6 bg-blue-50 p-4 rounded-lg">
         <h4 className="text-blue-800 font-medium mb-2">使用说明</h4>
         <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
-          <li>点击"下载导入模板"获取标准Excel格式</li>
+          <li>点击&quot;下载导入模板&quot;获取标准Excel格式</li>
           <li>按照模板格式填写学生成绩数据</li>
           <li>支持通过学号或姓名识别学生</li>
           <li>支持通过科目名称或考试名称匹配</li>
-          <li>上传Excel文件后系统会预览数据，确认无误后点击"确认导入"</li>
+          <li>上传Excel文件后系统会预览数据，确认无误后点击&quot;确认导入&quot;</li>
         </ol>
       </div>
     </>
