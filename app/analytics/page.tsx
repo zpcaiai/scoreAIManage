@@ -1,11 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import GradeDistributionChart from "@/components/analytics/GradeDistributionChart";
 import ClassTrendChart from "@/components/analytics/ClassTrendChart";
 import StudentTrackChart from "@/components/analytics/StudentTrackChart";
 import SubjectSegmentChart from "@/components/analytics/SubjectSegmentChart";
 import ClassCompareChart from "@/components/analytics/ClassCompareChart";
+
+// 页面日志工具
+const logPage = (action: string, details?: any) => {
+  console.log(`[PAGE] Analytics - ${new Date().toISOString()} - ${action}`, details);
+};
 
 const tabs = [
   { key: "grade",   label: "📊 年级宏观", desc: "班级横向对比、分位数、分数段分布" },
@@ -17,6 +22,20 @@ type TabKey = typeof tabs[number]["key"];
 
 export default function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("grade");
+
+  // 页面加载和标签切换日志
+  useEffect(() => {
+    logPage('PAGE_LOADED');
+  }, []);
+
+  useEffect(() => {
+    logPage('ANALYSIS_TAB_CHANGED', { activeTab, label: tabs.find(t => t.key === activeTab)?.label });
+  }, [activeTab]);
+
+  const handleTabChange = (tabKey: TabKey) => {
+    logPage('TAB_CLICKED', { from: activeTab, to: tabKey });
+    setActiveTab(tabKey);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
@@ -32,7 +51,7 @@ export default function AnalyticsPage() {
           {tabs.map(tab => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => handleTabChange(tab.key)}
               className={`p-4 rounded-xl border-2 text-left transition-all ${
                 activeTab === tab.key
                   ? "border-blue-500 bg-blue-50 shadow-sm"

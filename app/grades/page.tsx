@@ -11,12 +11,26 @@ const AnalyticsPage = dynamic(() => import('@/app/analytics/page'), { ssr: false
 const StudentReportPage = dynamic(() => import('@/app/student-report/page'), { ssr: false });
 import { ProtectedRoute, useAuth } from "@/contexts/AuthContext";
 
+// 页面日志工具
+const logPage = (action: string, details?: any) => {
+  console.log(`[PAGE] Grades - ${new Date().toISOString()} - ${action}`, details);
+};
+
 type TabType = 'grades' | 'classes' | 'students' | 'grade-input' | 'statistics' | 'analytics' | 'student-report';
 
 function GradesPageContent() {
   const [activeTab, setActiveTab] = useState<TabType>('grades');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { user, logout, hasRole } = useAuth();
+
+  // 页面加载和标签切换日志
+  useEffect(() => {
+    logPage('PAGE_LOADED', { user: user?.username, role: user?.role });
+  }, [user]);
+
+  useEffect(() => {
+    logPage('TAB_CHANGED', { activeTab, user: user?.username });
+  }, [activeTab, user]);
 
   const tabs = [
     { id: 'grades', label: '成绩查询', icon: '📊' },
@@ -29,7 +43,13 @@ function GradesPageContent() {
   ];
 
   const handleDataChange = () => {
+    logPage('DATA_CHANGED', { activeTab });
     setRefreshTrigger(prev => prev + 1);
+  };
+
+  const handleLogout = () => {
+    logPage('LOGOUT', { user: user?.username });
+    logout();
   };
 
   // Filter tabs based on user role
@@ -59,7 +79,7 @@ function GradesPageContent() {
                 欢迎, {user?.username} ({user?.role === 'admin' ? '管理员' : user?.role === 'teacher' ? '教师' : '学生'})
               </span>
               <button
-                onClick={logout}
+                onClick={handleLogout}
                 className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition-colors text-sm"
               >
                 退出登录

@@ -106,16 +106,48 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// API routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/students', require('./routes/students'));
-app.use('/api/classes', require('./routes/classes'));
-app.use('/api/subjects', require('./routes/subjects'));
-app.use('/api/grades', require('./routes/grades'));
-app.use('/api/exams', require('./routes/exams'));
+// API routes registration with logging
+Logger.info('Registering API routes...');
 
-// API documentation endpoint
+app.use('/api/auth', (req, res, next) => {
+  Logger.info(`[ROUTER] Auth route accessed: ${req.method} ${req.path}`);
+  next();
+}, require('./routes/auth'));
+
+app.use('/api/students', (req, res, next) => {
+  Logger.info(`[ROUTER] Students route accessed: ${req.method} ${req.path}`);
+  next();
+}, require('./routes/students'));
+
+app.use('/api/classes', (req, res, next) => {
+  Logger.info(`[ROUTER] Classes route accessed: ${req.method} ${req.path}`);
+  next();
+}, require('./routes/classes'));
+
+app.use('/api/subjects', (req, res, next) => {
+  Logger.info(`[ROUTER] Subjects route accessed: ${req.method} ${req.path}`);
+  next();
+}, require('./routes/subjects'));
+
+app.use('/api/grades', (req, res, next) => {
+  Logger.info(`[ROUTER] Grades route accessed: ${req.method} ${req.path}`);
+  next();
+}, require('./routes/grades'));
+
+app.use('/api/exams', (req, res, next) => {
+  Logger.info(`[ROUTER] Exams route accessed: ${req.method} ${req.path}`);
+  next();
+}, require('./routes/exams'));
+
+Logger.info('All API routes registered successfully');
+
+// API documentation endpoint with logging
 app.get('/api/docs', (req, res) => {
+  Logger.info(`[DOCS] API documentation accessed`, {
+    ip: req.ip,
+    userAgent: req.get('User-Agent')
+  });
+  
   res.json({
     name: 'ScoreAIManage API',
     version: require('./package.json').version,
@@ -133,8 +165,13 @@ app.get('/api/docs', (req, res) => {
   });
 });
 
-// 404 handler
+// 404 handler with logging
 app.use('*', (req, res) => {
+  Logger.warn(`[404] Route not found: ${req.method} ${req.originalUrl}`, {
+    ip: req.ip,
+    userAgent: req.get('User-Agent')
+  });
+  
   res.status(404).json({
     error: 'Not Found',
     message: `Route ${req.originalUrl} not found`,

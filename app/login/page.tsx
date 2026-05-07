@@ -1,8 +1,13 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+
+// 页面日志工具
+const logPage = (action: string, details?: any) => {
+  console.log(`[PAGE] Login - ${new Date().toISOString()} - ${action}`, details);
+};
 
 const DEMO_ACCOUNTS = [
   { label: '管理员', username: 'admin', password: 'admin123', color: 'bg-purple-100 text-purple-700 border-purple-200', icon: '👑' },
@@ -20,7 +25,17 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const { login } = useAuth();
 
+  // 页面加载日志
+  useEffect(() => {
+    logPage('PAGE_LOADED', {
+      hasRedirect: searchParams.has('redirect'),
+      redirectTo: searchParams.get('redirect')
+    });
+  }, [searchParams]);
+
   const handleSubmit = async (e: React.FormEvent) => {
+    logPage('LOGIN_SUBMIT', { username: username.trim() });
+    e.preventDefault();
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
       setError('请输入用户名和密码');
@@ -30,15 +45,19 @@ export default function LoginPage() {
     setError('');
 
     try {
+      logPage('LOGIN_ATTEMPT', { username: username.trim() });
       const success = await login(username.trim(), password);
       if (success) {
         const redirect = searchParams.get('redirect') || '/grades';
+        logPage('LOGIN_SUCCESS', { username: username.trim(), redirectTo: redirect });
         router.push(redirect);
         router.refresh();
       } else {
+        logPage('LOGIN_FAILED', { username: username.trim(), reason: 'invalid_credentials' });
         setError('用户名或密码错误，请重试');
       }
     } catch (err) {
+      logPage('LOGIN_ERROR', { username: username.trim(), error: err instanceof Error ? err.message : String(err) });
       setError(err instanceof Error ? err.message : '登录时发生错误，请稍后重试');
     } finally {
       setIsLoading(false);
@@ -46,6 +65,7 @@ export default function LoginPage() {
   };
 
   const fillDemo = useCallback((acc: typeof DEMO_ACCOUNTS[0]) => {
+    logPage('DEMO_ACCOUNT_SELECTED', { account: acc.label, username: acc.username });
     setUsername(acc.username);
     setPassword(acc.password);
     setError('');

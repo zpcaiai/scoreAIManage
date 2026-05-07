@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
+// 页面日志工具
+const logPage = (action: string, details?: any) => {
+  console.log(`[PAGE] StudentReport - ${new Date().toISOString()} - ${action}`, details);
+};
+
 const labelColors: Record<string, string> = {
   '持续进步': 'bg-green-100 text-green-700 border-green-300',
   '退步预警': 'bg-red-100 text-red-700 border-red-300',
@@ -17,17 +22,44 @@ export default function StudentReportPage() {
   const [classId, setClassId] = useState<string>('c0');
   const [allStudents, setAllStudents] = useState<any[]>([]);
 
+  // 页面加载日志
   useEffect(() => {
+    logPage('PAGE_LOADED');
+  }, []);
+
+  useEffect(() => {
+    logPage('FETCH_STUDENTS', { classId });
     setLoading(true);
     fetch(`/api/analytics/student-track?classId=${classId}`)
       .then(r => r.json())
       .then(d => {
+        logPage('STUDENTS_FETCHED', { classId, count: d.all_students?.length || 0 });
         setAllStudents(d.all_students || []);
         const first = d.all_students?.[0];
-        if (first) setSelectedId(first.student_id);
+        if (first) {
+          logPage('AUTO_SELECT_FIRST_STUDENT', { studentId: first.student_id });
+          setSelectedId(first.student_id);
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        logPage('FETCH_ERROR', { classId, error: err.message });
         setLoading(false);
       });
   }, [classId]);
+
+  // 班级变更日志
+  const handleClassChange = (newClassId: string) => {
+    logPage('CLASS_CHANGED', { from: classId, to: newClassId });
+    setClassId(newClassId);
+  };
+
+  // 学生变更日志
+  const handleStudentChange = (newStudentId: string) => {
+    const student = allStudents.find(s => s.student_id === newStudentId);
+    logPage('STUDENT_CHANGED', { studentId: newStudentId, name: student?.student_name });
+    setSelectedId(newStudentId);
+  };
 
   const student = allStudents.find(s => s.student_id === selectedId);
 
@@ -49,14 +81,14 @@ export default function StudentReportPage() {
           <div className="flex flex-wrap gap-3 mt-4">
             <div>
               <label className="text-xs text-gray-500 block mb-1">选择班级</label>
-              <select value={classId} onChange={e => setClassId(e.target.value)}
+              <select value={classId} onChange={e => handleClassChange(e.target.value)}
                 aria-label="选择班级" className="border rounded px-3 py-1.5 text-sm">
                 {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
               <label className="text-xs text-gray-500 block mb-1">选择学生</label>
-              <select value={selectedId} onChange={e => setSelectedId(e.target.value)}
+              <select value={selectedId} onChange={e => handleStudentChange(e.target.value)}
                 aria-label="选择学生" className="border rounded px-3 py-1.5 text-sm min-w-[160px]">
                 {allStudents.map(s => (
                   <option key={s.student_id} value={s.student_id}>{s.student_name}</option>
