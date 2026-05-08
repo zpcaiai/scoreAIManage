@@ -31,7 +31,13 @@ export class PostgreSQLDatabase {
       maxConnections: parseInt(process.env.DB_MAX_CONNECTIONS || '20')
     };
 
-    this.pool = new Pool({
+    const poolConfig: any = process.env.DATABASE_URL ? {
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_URL.includes('render.com') || config.ssl ? { rejectUnauthorized: false } : false,
+      max: config.maxConnections,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: config.connectionTimeout,
+    } : {
       host: config.host,
       port: config.port,
       database: config.database,
@@ -41,7 +47,9 @@ export class PostgreSQLDatabase {
       max: config.maxConnections,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: config.connectionTimeout,
-    });
+    };
+
+    this.pool = new Pool(poolConfig);
 
     // 监听连接池事件
     this.pool.on('connect', () => {
