@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "node server.js",
-    "start:next": "next start",
+    "start": "next start",
+    "start:express": "node server.js",
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",

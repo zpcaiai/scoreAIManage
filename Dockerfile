@@ -7,14 +7,14 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install all dependencies (need dev dependencies for Next.js build)
+RUN npm ci
 
 # Copy application code
 COPY . .
 
-# Create logs directory
-RUN mkdir -p logs
+# Build Next.js
+RUN npm run build
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
@@ -24,12 +24,9 @@ RUN addgroup -g 1001 -S nodejs && \
 RUN chown -R nodejs:nodejs /app
 USER nodejs
 
-# Expose port
-EXPOSE 10000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node health-check.js || exit 1
+# Configure for Hugging Face Spaces / Render
+ENV PORT=7860
+EXPOSE 7860
 
 # Start the application
 CMD ["npm", "start"]

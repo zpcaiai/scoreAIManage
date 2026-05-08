@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Only use static export in production
-  output: process.env.NODE_ENV === 'production' ? 'export' : undefined,
-  distDir: 'out',
+  // Use default Node.js server to support API routes
+  // output: 'export' is removed
+  // distDir: 'out' is removed
   trailingSlash: true,
   images: {
     unoptimized: true,
