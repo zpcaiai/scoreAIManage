@@ -405,6 +405,30 @@ export class DataAccessLayer {
     return result.rows[0] || null;
   }
 
+  async createSubject(data: any): Promise<any> {
+    const fields = Object.keys(data).join(', ');
+    const placeholders = Object.keys(data).map((_, i) => `$${i + 1}`).join(', ');
+    const values = Object.values(data);
+    
+    const query = `INSERT INTO subjects (${fields}) VALUES (${placeholders}) RETURNING *`;
+    const result = await this.db.query(query, values);
+    return result.rows[0];
+  }
+
+  async updateSubject(id: string, data: any): Promise<any | null> {
+    const fields = Object.keys(data).map((key, index) => `${key} = $${index + 2}`).join(', ');
+    const values = [id, ...Object.values(data)];
+    
+    const query = `UPDATE subjects SET ${fields}, updated_at = CURRENT_TIMESTAMP WHERE subject_id = $1 RETURNING *`;
+    const result = await this.db.query(query, values);
+    return result.rows[0] || null;
+  }
+
+  async deleteSubject(id: string): Promise<boolean> {
+    const result = await this.db.query('DELETE FROM subjects WHERE subject_id = $1', [id]);
+    return result.rowCount > 0;
+  }
+
   // 考试操作
   async getExams(): Promise<any[]> {
     const result = await this.db.query('SELECT * FROM exams ORDER BY start_date DESC');
@@ -414,6 +438,30 @@ export class DataAccessLayer {
   async getExamById(id: string): Promise<any | null> {
     const result = await this.db.query('SELECT * FROM exams WHERE exam_id = $1', [id]);
     return result.rows[0] || null;
+  }
+
+  async createExam(data: any): Promise<any> {
+    const fields = Object.keys(data).join(', ');
+    const placeholders = Object.keys(data).map((_, i) => `$${i + 1}`).join(', ');
+    const values = Object.values(data);
+    
+    const query = `INSERT INTO exams (${fields}) VALUES (${placeholders}) RETURNING *`;
+    const result = await this.db.query(query, values);
+    return result.rows[0];
+  }
+
+  async updateExam(id: string, data: any): Promise<any | null> {
+    const fields = Object.keys(data).map((key, index) => `${key} = $${index + 2}`).join(', ');
+    const values = [id, ...Object.values(data)];
+    
+    const query = `UPDATE exams SET ${fields}, updated_at = CURRENT_TIMESTAMP WHERE exam_id = $1 RETURNING *`;
+    const result = await this.db.query(query, values);
+    return result.rows[0] || null;
+  }
+
+  async deleteExam(id: string): Promise<boolean> {
+    const result = await this.db.query('DELETE FROM exams WHERE exam_id = $1', [id]);
+    return result.rowCount > 0;
   }
 
   // 成绩操作
