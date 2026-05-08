@@ -47,9 +47,13 @@ export default function LoginPage() {
       const success = await login(username.trim(), password);
       console.log('[LoginPage] Login result:', success);
       if (success) {
-        const redirect = searchParams.get('redirect') || '/grades';
-        // Remove trailing slash if present
-        const cleanRedirect = redirect.endsWith('/') ? redirect.slice(0, -1) : redirect;
+        let redirectUrlParam = searchParams.get('redirect');
+        if (!redirectUrlParam) redirectUrlParam = '/grades';
+        // Remove trailing slash if present, unless it is just '/'
+        let cleanRedirect = redirectUrlParam;
+        if (cleanRedirect.length > 1 && cleanRedirect.endsWith('/')) {
+          cleanRedirect = cleanRedirect.slice(0, -1);
+        }
         logPage('LOGIN_SUCCESS', { username: username.trim(), redirectTo: cleanRedirect });
         console.log('[LoginPage] Redirecting to:', cleanRedirect);
         // Ensure the auth_token cookie is set client-side before navigating,
