@@ -60,7 +60,7 @@ export default function LoginPage() {
         // so the middleware can read it on the very next request.
         const token = localStorage.getItem('auth_token');
         if (token) {
-          document.cookie = `auth_token=${token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`;
+          document.cookie = `auth_token=${token}; path=/; max-age=${60 * 60 * 24}; SameSite=None; Secure`;
         }
         // Small delay to guarantee the cookie is persisted before the browser
         // sends the next request (avoids the race-condition that causes

@@ -80,8 +80,8 @@ export const POST = apiHandler(
     // Set cookie so middleware can protect page routes (httpOnly for security)
     response.cookies.set('auth_token', token, {
       httpOnly: false, // Temporarily disable for debugging
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: true, // Must be true for sameSite: 'none'
+      sameSite: 'none', // Allow cross-origin (iframe on huggingface.co)
       maxAge: 60 * 60 * 24, // 24 hours
       path: '/'
     });
