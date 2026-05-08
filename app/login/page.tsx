@@ -41,6 +41,7 @@ export default function LoginPage() {
     setIsLoading(true);
     setError('');
 
+    let redirecting = false;
     try {
       logPage('LOGIN_ATTEMPT', { username: username.trim() });
       const success = await login(username.trim(), password);
@@ -51,8 +52,19 @@ export default function LoginPage() {
         const cleanRedirect = redirect.endsWith('/') ? redirect.slice(0, -1) : redirect;
         logPage('LOGIN_SUCCESS', { username: username.trim(), redirectTo: cleanRedirect });
         console.log('[LoginPage] Redirecting to:', cleanRedirect);
-        // Use window.location.href for forced navigation
-        window.location.href = cleanRedirect;
+        // Ensure the auth_token cookie is set client-side before navigating,
+        // so the middleware can read it on the very next request.
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+          document.cookie = `auth_token=${token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`;
+        }
+        // Small delay to guarantee the cookie is persisted before the browser
+        // sends the next request (avoids the race-condition that causes
+        // middleware to redirect back to /login).
+        redirecting = true;
+        setTimeout(() => {
+          router.replace(cleanRedirect);
+        }, 100);
       } else {
         logPage('LOGIN_FAILED', { username: username.trim(), reason: 'invalid_credentials' });
         setError('用户名或密码错误，请重试');
@@ -61,7 +73,10 @@ export default function LoginPage() {
       logPage('LOGIN_ERROR', { username: username.trim(), error: err instanceof Error ? err.message : String(err) });
       setError(err instanceof Error ? err.message : '登录时发生错误，请稍后重试');
     } finally {
-      setIsLoading(false);
+      // Keep spinner active while redirecting so the UI doesn't flicker
+      if (!redirecting) {
+        setIsLoading(false);
+      }
     }
   };
 

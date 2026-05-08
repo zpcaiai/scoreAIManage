@@ -1,14 +1,6 @@
-# 排除依赖
 node_modules/
-vendor/
-
-# 排除编译产物
-dist/
-build/
-.next/
-
-# 排除日志和大型数据文件
-*.log
-*.csv
-*.json
+target/
 .git/
+*.log
+build/
+dist/

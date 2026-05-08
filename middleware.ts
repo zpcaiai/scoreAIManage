@@ -1,11 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
 
-// Force Node.js runtime for crypto module support
+// Force Node.js runtime for crypto module support (Next.js middleware still runs in Edge though)
 export const runtime = 'nodejs';
 
 // Public paths that do not require authentication
 const PUBLIC_PATHS = ['/login', '/api/auth/login'];
+
+// Edge-compatible JWT parser (no signature verification, just expiration check)
+// API routes will still do full signature verification since they run in Node.js.
+function parseJwtEdge(token: string) {
+  try {
+    const base64Url = token.split('.')[1];
+    const padLength = (4 - (base64Url.length % 4)) % 4;
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat(padLength);
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    const payload = JSON.parse(jsonPayload);
+    const currentTime = Date.now() / 1000;
+    
+    if (payload.exp && payload.exp < currentTime) {
+      return null;
+    }
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -33,7 +57,7 @@ export function middleware(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const user = verifyToken(token);
+    const user = parseJwtEdge(token);
 
     if (!user) {
       return NextResponse.json(
@@ -63,9 +87,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const user = verifyToken(tokenCookie.value);
+  const user = parseJwtEdge(tokenCookie.value);
   console.log('[Middleware] Token verification:', user ? 'valid' : 'invalid');
-  
+
   if (!user) {
     console.log('[Middleware] Invalid token, redirecting to login');
     const loginUrl = new URL('/login', request.url);

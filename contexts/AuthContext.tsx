@@ -1,7 +1,13 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { apiClient, AuthUser, authUtils } from '@/lib/auth-client';
+import { useRouter, usePathname } from 'next/navigation';
+import { apiClient, AuthUser, authUtils, decodeTokenPayload, setupRequestInterceptor } from '@/lib/auth-client';
+
+// Initialize the global fetch interceptor to attach Bearer tokens to all API requests
+if (typeof window !== 'undefined') {
+  setupRequestInterceptor();
+}
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -25,36 +31,44 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize authentication state
+  // Initialize authentication state from stored token (no network call needed)
   useEffect(() => {
-    const initAuth = async () => {
+    const initAuth = () => {
       try {
-        const storedToken = apiClient.getToken();
-        
-        if (storedToken) {
-          // Check if token is still valid
-          if (!authUtils.isTokenExpired(storedToken)) {
-            setToken(storedToken);
-            
-            // Get current user
-            const currentUser = await apiClient.getCurrentUser();
-            if (currentUser) {
-              setUser(currentUser);
-            } else {
-              // Token is invalid, clear it
-              apiClient.clearToken();
-              setToken(null);
+        // Try localStorage first, then fall back to cookie value
+        let storedToken = apiClient.getToken();
+
+        if (!storedToken && typeof document !== 'undefined') {
+          // Read from cookie as fallback (set by server on login response)
+          const cookieMatch = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('auth_token='));
+          if (cookieMatch) {
+            storedToken = decodeURIComponent(cookieMatch.split('=').slice(1).join('='));
+            if (storedToken) {
+              // Sync back to localStorage so subsequent API calls work
+              apiClient.setToken(storedToken);
             }
-          } else {
-            // Token is expired, clear it
-            apiClient.clearToken();
-            setToken(null);
           }
+        }
+
+        if (storedToken && !authUtils.isTokenExpired(storedToken)) {
+          // Decode user info directly from the JWT — no network round-trip,
+          // no risk of a 401 causing an unwanted redirect.
+          const userFromToken = decodeTokenPayload(storedToken);
+          if (userFromToken) {
+            setToken(storedToken);
+            setUser(userFromToken);
+          } else {
+            apiClient.clearToken();
+          }
+        } else {
+          // Token missing or expired
+          apiClient.clearToken();
         }
       } catch (error) {
         console.error('Failed to initialize authentication:', error);
         apiClient.clearToken();
-        setToken(null);
       } finally {
         setIsLoading(false);
       }
@@ -147,6 +161,17 @@ export function ProtectedRoute({
   fallback 
 }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading, hasRole, hasPermission } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      if (!fallback) {
+        // Redirect to login, preserving the current path so login can redirect back
+        router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
+      }
+    }
+  }, [isLoading, isAuthenticated, fallback, router, pathname]);
 
   if (isLoading) {
     return (
@@ -160,12 +185,12 @@ export function ProtectedRoute({
     if (fallback) {
       return <>{fallback}</>;
     }
-    
-    // Redirect to login
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login';
-    }
-    return null;
+    // Show loading while redirect is in progress
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
   }
 
   // Check role requirements

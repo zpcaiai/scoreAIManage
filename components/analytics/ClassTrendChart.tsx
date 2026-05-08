@@ -36,7 +36,11 @@ export default function ClassTrendChart() {
     fetch("/api/classes")
       .then(r => r.json())
       .then(d => {
-        const list: ClassOption[] = d.data ?? d ?? [];
+        if (d.success === false) {
+          console.error("Failed to fetch classes:", d);
+          throw new Error("API returned failure");
+        }
+        const list: ClassOption[] = Array.isArray(d.data) ? d.data : Array.isArray(d) ? d : [];
         setClasses(list);
         if (list.length >= 1) setMainId(String(list[0].class_id));
         if (list.length >= 2) setCompareId(String(list[1].class_id));
@@ -63,6 +67,8 @@ export default function ClassTrendChart() {
 
   if (loading) return <div className="flex items-center justify-center h-48 text-gray-400">加载中...</div>;
   if (!data) return null;
+  if (data.success === false) return <div className="flex items-center justify-center h-48 text-red-500">获取趋势数据失败：{data.message || data.error || '无权访问'}</div>;
+  if (!data.chart_data || !data.main_class) return <div className="flex items-center justify-center h-48 text-gray-400">暂无数据</div>;
 
   const directionColor = (color: string) => {
     if (color === "green") return "text-green-600 bg-green-50 border-green-200";

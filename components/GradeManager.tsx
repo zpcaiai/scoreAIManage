@@ -129,9 +129,10 @@ export default function GradeManager({ onDataChange }: GradeManagerProps) {
     try {
       const response = await fetch('/api/classes');
       const data = await response.json();
-      setClasses(data);
-      if (data.length > 0 && !selectedClass) {
-        setSelectedClass(data[0].class_id);
+      const classesData = data.success ? data.data : (Array.isArray(data) ? data : []);
+      setClasses(classesData);
+      if (classesData.length > 0 && !selectedClass) {
+        setSelectedClass(classesData[0].class_id);
       }
     } catch (error) {
       console.error('Error fetching classes:', error);
@@ -144,7 +145,8 @@ export default function GradeManager({ onDataChange }: GradeManagerProps) {
     try {
       const response = await fetch(`/api/students?classId=${selectedClass}`);
       const data = await response.json();
-      setStudents(data);
+      const studentsData = data.success ? data.data : (Array.isArray(data) ? data : []);
+      setStudents(studentsData);
       setGrades({});
     } catch (error) {
       console.error('Error fetching students:', error);
@@ -158,10 +160,11 @@ export default function GradeManager({ onDataChange }: GradeManagerProps) {
     
     try {
       const response = await fetch(`/api/grades?examId=${selectedExam}&subjectId=${selectedSubject}`);
-      const data = await response.json();
+      const result = await response.json();
+      const gradesData = result.success ? result.data : (Array.isArray(result) ? result : []);
       
       const existingGrades: {[key: string]: string} = {};
-      data.forEach((grade: any) => {
+      gradesData.forEach((grade: any) => {
         existingGrades[grade.student_id] = grade.score.toString();
       });
       setGrades(existingGrades);

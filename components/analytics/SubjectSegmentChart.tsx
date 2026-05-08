@@ -34,6 +34,8 @@ export default function SubjectSegmentChart() {
 
   if (loading) return <div className="flex items-center justify-center h-48 text-gray-400">加载中...</div>;
   if (!data) return null;
+  if (data.success === false) return <div className="flex items-center justify-center h-48 text-red-500">获取数据失败：{data.message || data.error || '无权访问'}</div>;
+  if (!data.by_subject) return <div className="flex items-center justify-center h-48 text-gray-400">暂无数据</div>;
 
   const subjectList: SubjectData[] = data.by_subject;
   const classNames: string[] = data.classes;

@@ -92,12 +92,10 @@ export class SecureApiClient {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         
-        // Handle authentication errors
+        // Handle authentication errors - clear token but do NOT redirect here.
+        // Redirect decisions belong to ProtectedRoute / the page layer.
         if (response.status === 401) {
           this.clearToken();
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login';
-          }
           throw new Error('Authentication required');
         }
 
@@ -274,10 +272,14 @@ export const authUtils = {
   // Check if token is expired (basic check)
   isTokenExpired(token: string): boolean {
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      let base64Url = token.split('.')[1];
+      const padLength = (4 - (base64Url.length % 4)) % 4;
+      let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat(padLength);
+      const payload = JSON.parse(atob(base64));
       const currentTime = Date.now() / 1000;
       return payload.exp < currentTime;
-    } catch {
+    } catch (e) {
+      console.error('isTokenExpired parse error:', e);
       return true; // If we can't parse, assume it's expired
     }
   },
@@ -303,6 +305,26 @@ export const authUtils = {
   }
 };
 
+// Decode JWT payload to extract user info (no network call needed)
+export function decodeTokenPayload(token: string): AuthUser | null {
+  try {
+    let base64Url = token.split('.')[1];
+    const padLength = (4 - (base64Url.length % 4)) % 4;
+    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat(padLength);
+    const payload = JSON.parse(atob(base64));
+    if (!payload.id || !payload.username || !payload.role) return null;
+    return {
+      id: payload.id,
+      username: payload.username,
+      role: payload.role,
+      permissions: payload.permissions || [],
+    };
+  } catch (e) {
+    console.error('decodeTokenPayload error:', e);
+    return null;
+  }
+}
+
 // Request interceptor for automatic token refresh
 export function setupRequestInterceptor(): void {
   if (typeof window === 'undefined') return;
@@ -323,10 +345,11 @@ export function setupRequestInterceptor(): void {
     try {
       const response = await originalFetch(input, init);
       
-      // Handle 401 responses
-      if (response.status === 401) {
+      // Handle 401 responses - only clear token, never hard-redirect from here.
+      // Browser extensions and other non-app requests can also return 401;
+      // redirecting unconditionally would break the post-login flow.
+      if (response.status === 401 && input.toString().includes('/api/auth/')) {
         apiClient.clearToken();
-        window.location.href = '/login';
       }
       
       return response;

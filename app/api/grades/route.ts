@@ -14,12 +14,14 @@ export const GET = apiHandler(
     const classId = searchParams.get('classId');
     const examId = searchParams.get('examId');
     const studentId = searchParams.get('studentId');
+    const subjectId = searchParams.get('subjectId');
     
     // Build filters
     const filters: any = {};
     if (classId) filters.student_class_id = classId;
     if (examId) filters.exam_id = examId;
     if (studentId) filters.student_id = studentId;
+    if (subjectId) filters.subject_id = subjectId;
     
     // Students can only view their own grades
     if (user!.role === UserRole.STUDENT) {

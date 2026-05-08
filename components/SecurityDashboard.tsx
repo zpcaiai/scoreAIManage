@@ -75,7 +75,7 @@ export default function SecurityDashboard() {
       }
       
       const data = await response.json();
-      setDashboardData(data);
+      setDashboardData(data.success ? data.data : data);
       
     } catch (error) {
       console.error('Error fetching security data:', error);

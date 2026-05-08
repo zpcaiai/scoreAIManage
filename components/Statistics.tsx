@@ -44,9 +44,10 @@ export default function Statistics({ refreshTrigger }: StatisticsProps) {
     try {
       const response = await fetch('/api/exams');
       const data = await response.json();
-      setExams(data);
-      if (data.length > 0) {
-        setSelectedExam(data[0].exam_id);
+      const examsData = data.success ? data.data : (Array.isArray(data) ? data : []);
+      setExams(examsData);
+      if (examsData.length > 0) {
+        setSelectedExam(examsData[0].exam_id);
       }
     } catch (error) {
       console.error('Error fetching exams:', error);
@@ -68,9 +69,9 @@ export default function Statistics({ refreshTrigger }: StatisticsProps) {
       const subjectData = await subjectRes.json();
       const topData = await topRes.json();
 
-      setClassStats(classData);
-      setSubjectStats(subjectData);
-      setTopStudents(topData);
+      setClassStats(classData.success ? classData.data : (Array.isArray(classData) ? classData : []));
+      setSubjectStats(subjectData.success ? subjectData.data : (Array.isArray(subjectData) ? subjectData : []));
+      setTopStudents(topData.success ? topData.data : (Array.isArray(topData) ? topData : []));
     } catch (error) {
       console.error('Error fetching statistics:', error);
     } finally {

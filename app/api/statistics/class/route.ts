@@ -18,58 +18,62 @@ export const GET = apiHandler(
     
     // Get all grades for the exam
     const grades = await getDA().getGrades({ exam_id: examId });
-    const classes = await getDA().getClasses();
-    
-    // Calculate statistics for each class
-    const classStats = classes.map(cls => {
-      const classGrades = grades.filter(g => {
-        // In a real system, we'd join through students to get class
-        // For now, we'll use a simplified approach
-        return true; // This would be filtered by student->class relationship
-      });
-      
-      const subjectScores = new Map<string, number[]>();
-      
-      classGrades.forEach(grade => {
-        if (!subjectScores.has(grade.subject_id)) {
-          subjectScores.set(grade.subject_id, []);
-        }
-        subjectScores.get(grade.subject_id)!.push(grade.score);
-      });
-      
-      const subjectStats: any[] = [];
-      let totalSum = 0;
-      let totalCount = 0;
-      
-      subjectScores.forEach((scores, subjectId) => {
-        const avg = scores.reduce((sum: number, score: number) => sum + score, 0) / scores.length;
-        const max = Math.max(...scores);
-        const min = Math.min(...scores);
-        const passCount = scores.filter((score: number) => score >= 60).length;
-        const excellentCount = scores.filter((score: number) => score >= 90).length;
-        
-        subjectStats.push({
-          subject_id: subjectId,
-          average: parseFloat(avg.toFixed(2)),
-          max,
-          min,
-          pass_rate: parseFloat(((passCount / scores.length) * 100).toFixed(2)),
-          excellent_rate: parseFloat(((excellentCount / scores.length) * 100).toFixed(2)),
-          count: scores.length
+    // 1. Group grades by student to calculate totals
+    const studentTotals = new Map<string, {
+      class_name: string;
+      ten_total: number;
+      three_total: number;
+    }>();
+
+    grades.forEach(g => {
+      if (!studentTotals.has(g.student_id)) {
+        studentTotals.set(g.student_id, {
+          class_name: g.class_name,
+          ten_total: 0,
+          three_total: 0
         });
-        
-        totalSum += avg;
-        totalCount++;
-      });
-      
-      return {
-        class_id: cls.class_id,
-        class_name: cls.class_name,
-        subject_stats: subjectStats,
-        overall_average: totalCount > 0 ? parseFloat((totalSum / totalCount).toFixed(2)) : 0,
-        total_students: classGrades.length
-      };
+      }
+      const student = studentTotals.get(g.student_id)!;
+      const score = Number(g.score) || 0;
+      student.ten_total += score;
+      // Assume subject_id 1, 2, 3 or CHN, MATH, ENG are the main 3
+      if (['1', '2', '3', 'CHN', 'MATH', 'ENG'].includes(String(g.subject_id))) {
+        student.three_total += score;
+      }
     });
+
+    // 2. Group student totals by class
+    const classGroups = new Map<string, Array<{ ten_total: number; three_total: number }>>();
+    
+    studentTotals.forEach(student => {
+      if (!classGroups.has(student.class_name)) {
+        classGroups.set(student.class_name, []);
+      }
+      classGroups.get(student.class_name)!.push(student);
+    });
+
+    // 3. Calculate final stats per class
+    const classStats = Array.from(classGroups.entries()).map(([class_name, students]) => {
+      const student_count = students.length;
+      if (student_count === 0) return null;
+
+      const ten_scores = students.map(s => s.ten_total);
+      const three_scores = students.map(s => s.three_total);
+
+      const avg_ten_subjects = ten_scores.reduce((a, b) => a + b, 0) / student_count;
+      const avg_three_subjects = three_scores.reduce((a, b) => a + b, 0) / student_count;
+      const max_ten_subjects = Math.max(...ten_scores);
+      const min_ten_subjects = Math.min(...ten_scores);
+
+      return {
+        class_name,
+        student_count,
+        avg_ten_subjects: parseFloat(avg_ten_subjects.toFixed(2)),
+        avg_three_subjects: parseFloat(avg_three_subjects.toFixed(2)),
+        max_ten_subjects: parseFloat(max_ten_subjects.toFixed(2)),
+        min_ten_subjects: parseFloat(min_ten_subjects.toFixed(2))
+      };
+    }).filter(Boolean);
     
     return NextResponse.json({
       success: true,

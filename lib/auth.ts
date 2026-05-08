@@ -62,8 +62,16 @@ export function authenticate(request: NextRequest): User | null {
   return verifyToken(token);
 }
 
-// Authorization middleware (only teacher role now)
+// Authorization middleware (teacher has access to everything)
 export function authorize(user: User, requiredRole: UserRole): boolean {
+  // If the user is a teacher, they have full access (since admin is removed)
+  if (user.role === UserRole.TEACHER) return true;
+  
+  // Basic hierarchy if needed in the future
+  if (requiredRole === UserRole.STUDENT && (user.role === UserRole.ADMIN || user.role === UserRole.TEACHER)) {
+    return true;
+  }
+  
   return user.role === requiredRole;
 }
 

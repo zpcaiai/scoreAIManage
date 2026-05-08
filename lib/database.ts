@@ -21,11 +21,11 @@ export class PostgreSQLDatabase {
 
   private constructor() {
     const config: DatabaseConfig = {
-      host: process.env.DATABASE_HOST || 'localhost',
-      port: parseInt(process.env.DATABASE_PORT || '5432'),
-      database: process.env.DATABASE_NAME || 'grade_management',
-      user: process.env.DATABASE_USER || 'postgres',
-      password: process.env.DATABASE_PASSWORD || 'password',
+      host: process.env.DATABASE_HOST || process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DATABASE_PORT || process.env.DB_PORT || '5432'),
+      database: process.env.DATABASE_NAME || process.env.DB_NAME || 'grade_management',
+      user: process.env.DATABASE_USER || process.env.DB_USER || 'postgres',
+      password: process.env.DATABASE_PASSWORD || process.env.DB_PASSWORD || 'password',
       ssl: process.env.DB_SSL === 'true',
       connectionTimeout: parseInt(process.env.DB_CONNECTION_TIMEOUT || '2000'),
       maxConnections: parseInt(process.env.DB_MAX_CONNECTIONS || '20')
@@ -96,7 +96,7 @@ export class PostgreSQLDatabase {
   // 执行查询
   async query(text: string, params?: any[]): Promise<any> {
     if (!this.connected) {
-      throw createDatabaseError('Database not connected');
+      await this.connect();
     }
 
     const start = Date.now();
@@ -118,7 +118,7 @@ export class PostgreSQLDatabase {
   // 获取客户端连接（用于事务）
   async getClient(): Promise<PoolClient> {
     if (!this.connected) {
-      throw createDatabaseError('Database not connected');
+      await this.connect();
     }
     return await this.pool.connect();
   }
@@ -254,9 +254,8 @@ export class DatabaseManager {
   }
 
   getDatabase(): PostgreSQLDatabase {
-    if (!this.connected) {
-      throw createDatabaseError('Database not connected');
-    }
+    // Return the database instance directly so the async methods (query, getClient)
+    // can handle the lazy auto-connection.
     return this.db;
   }
 }
@@ -412,19 +411,26 @@ export class DataAccessLayer {
   // 成绩操作
   async getGrades(filters?: any): Promise<any[]> {
     let query = `
-      SELECT g.*, s.student_name, sub.subject_name, c.class_name
+      SELECT g.*, s.student_name, sub.subject_name, c.class_name, e.exam_id, e.exam_name
       FROM grades g
       LEFT JOIN students s ON g.student_id = s.student_id
       LEFT JOIN subjects sub ON g.subject_id = sub.subject_id
       LEFT JOIN classes c ON s.class_id = c.class_id
+      LEFT JOIN exams e ON g.exam_type = e.exam_type AND g.semester = e.semester AND g.academic_year = e.academic_year
     `;
     const params: any[] = [];
     
     if (filters) {
       const conditions: string[] = [];
-      Object.keys(filters).forEach((key, index) => {
-        conditions.push(`g.${key} = $${index + 1}`);
+      let paramIndex = 1;
+      Object.keys(filters).forEach((key) => {
+        let field = `g.${key}`;
+        if (key === 'exam_id') field = 'e.exam_id';
+        if (key === 'student_class_id' || key === 'class_id') field = 's.class_id';
+        
+        conditions.push(`${field} = $${paramIndex}`);
         params.push(filters[key]);
+        paramIndex++;
       });
       if (conditions.length > 0) {
         query += ' WHERE ' + conditions.join(' AND ');
