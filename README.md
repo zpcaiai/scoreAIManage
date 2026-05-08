@@ -3,12 +3,9 @@ title: Scoreaimanage
 emoji: 🎓
 colorFrom: blue
 colorTo: green
-sdk: flask
-sdk_version: 2.3.3
-python_version: '3.13'
-app_file: app.py
+sdk: docker
 pinned: false
-tags: [score, management, education]
+tags: [score, management, education, nextjs]
 ---
 
 # ScoreAIManage - 学生成绩管理系统
