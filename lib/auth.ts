@@ -68,7 +68,7 @@ export function authorize(user: User, requiredRole: UserRole): boolean {
   if (user.role === UserRole.TEACHER) return true;
   
   // Basic hierarchy if needed in the future
-  if (requiredRole === UserRole.STUDENT && (user.role === UserRole.ADMIN || user.role === UserRole.TEACHER)) {
+  if (requiredRole === UserRole.STUDENT && user.role === UserRole.ADMIN) {
     return true;
   }
   
